@@ -17,6 +17,7 @@ export type Screen =
   | { view: "sale" }
   | { view: "repair-bill"; repairId: string }
   | { view: "backup" }
+  | { view: "guide" }
   | { view: "settings" }
   | { view: "workspace" };
 
@@ -64,6 +65,8 @@ export function screenTitle(screen: Screen): string {
       return "Hóa đơn sửa chữa";
     case "backup":
       return "Sao lưu";
+    case "guide":
+      return "Hướng dẫn sử dụng";
     case "settings":
       return "Cửa hàng";
     case "workspace":

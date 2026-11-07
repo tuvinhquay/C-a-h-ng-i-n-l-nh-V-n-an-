@@ -84,7 +84,7 @@ các điểm điều hướng liên quan.
 
 | Khu vực       | File chính                             | Chức năng                                                                                                       |
 | ------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Tổng quan     | `src/components/screens/home.tsx`      | Thống kê phiếu đang sửa, hàng tồn thấp, bảo hành sắp hết, doanh thu/lãi ước tính; thao tác nhanh; phiếu gần đây |
+| Tổng quan     | `src/components/screens/home.tsx`      | Thống kê vận hành, thao tác nhanh, phiếu gần đây và ghi nhận nhà phát triển Q.89 ở cuối trang                 |
 | Kho linh kiện | `src/components/screens/parts.tsx`     | Tìm/lọc linh kiện, cảnh báo tồn thấp, thêm/sửa, nhập/xuất/kiểm kê, lịch sử biến động                            |
 | Sửa chữa      | `src/components/screens/repairs.tsx`   | Danh sách/lọc phiếu, tạo và sửa phiếu, quản lý trạng thái, linh kiện/công thợ, bảo hành, hoàn tất/hủy           |
 | Khách hàng    | `src/components/screens/customers.tsx` | Danh sách, tìm kiếm, hồ sơ, lịch sử phiếu sửa, tạo phiếu cho khách                                              |
@@ -93,7 +93,8 @@ các điểm điều hướng liên quan.
 | Sao lưu       | `src/components/screens/backup.tsx`    | Tải file JSON, xác nhận và khôi phục toàn bộ dữ liệu từ file                                                    |
 | Cài đặt       | `src/components/screens/settings.tsx`  | Tên cửa hàng, người lập, liên hệ, mã số thuế, lời cuối hóa đơn và cài ứng dụng                                  |
 | Thiết bị      | `src/components/screens/workspace.tsx` | Tạo/tham gia sổ chung, mời/thu hồi, trạng thái thiết bị online/offline                                          |
-| Trợ lý        | `src/components/assistant-bot.tsx`     | Tra tồn, vị trí, hàng sắp hết, phiếu sửa; dạy và lưu sản phẩm mới cục bộ                                        |
+| Hướng dẫn     | `src/components/screens/guide.tsx`     | Cẩm nang theo từng nghiệp vụ; mở từ menu hoặc nhờ bot hướng dẫn theo câu hỏi                                     |
+| Trợ lý        | `src/components/assistant-bot.tsx`     | Tra tồn, vị trí, hàng sắp hết, phiếu sửa; hướng dẫn dùng app, dạy và lưu sản phẩm mới cục bộ                    |
 
 `src/components/line-editor.tsx` dùng để nhập danh sách linh kiện, công thợ,
 phụ phí. `src/components/paper-view.tsx` dựng bản HTML dùng chung cho bản xem
@@ -177,6 +178,14 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
 - Cấu hình PWA và tài nguyên nền tảng liên quan nằm ở `vite.config.ts`,
   `scripts/grok-pwa-plugin.mjs`, `server/middleware/grok-pwa.ts` và
   `public/__grok/`.
+- Video nền toàn ứng dụng được gắn trong `src/routes/__root.tsx` qua
+  `src/components/video-background.tsx`. Đặt video MP4 tại
+  `public/media/videonen.mp4`; lớp phủ tối, fallback và xử lý giảm chuyển động
+  nằm trong `src/styles.css`.
+- Logo dùng cho favicon, biểu tượng màn hình chính và manifest tùy chỉnh là
+  `public/media/logo-vanan.png` (ảnh vuông PNG độ phân giải cao, nên dùng 512×512).
+  Manifest riêng của app ở `public/manifest.webmanifest`; injector nền tảng vẫn
+  được giữ nguyên làm lớp PWA dự phòng.
 - `src/lib/paper.ts` dựng `PaperDoc`, làm ấm font, xuất PDF có font Noto Sans và
   xuất PNG. Font PDF: `src/assets/fonts/NotoSans-Regular.ttf` và
   `src/assets/fonts/NotoSans-Bold.ttf`.
@@ -207,6 +216,8 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
   và xóa thành viên. Thành viên dùng tài khoản riêng.
 - Bot chạy nhận diện ý định hoàn toàn cục bộ (không gọi API AI); sản phẩm được
   dạy trở thành dữ liệu kho bình thường và đồng bộ theo cơ chế chung.
+- `src/lib/help.ts` là nguồn nội dung dùng chung của cẩm nang và bot; hỏi cách
+  làm một nghiệp vụ sẽ trả lời theo các bước và có nút mở đúng màn hình.
 - `src/lib/app-data/` chứa tiện ích gọi connector và phân loại trạng thái/lỗi,
   nhưng không được dùng cho việc đồng bộ nghiệp vụ này.
 

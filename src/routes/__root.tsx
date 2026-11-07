@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { VideoBackground } from "@/components/video-background";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Cửa hàng điện lạnh Vân An";
@@ -13,15 +14,18 @@ export const Route = createRootRoute({
       { title: APP_NAME },
       {
         name: "description",
-        content: "Phần mềm quản lý kho hàng đa nền tảng là cộng sự số một cho mọi Doanh nghiệp lớn/nhỏ. Quản lý kho linh kiện, phiếu sửa chữa, bảo hành và hóa đơn.",
+        content:
+          "Phần mềm quản lý kho hàng đa nền tảng là cộng sự số một cho mọi Doanh nghiệp lớn/nhỏ. Quản lý kho linh kiện, phiếu sửa chữa, bảo hành và hóa đơn.",
       },
       { name: "theme-color", content: "#0B0F19" },
       { name: "apple-mobile-web-app-title", content: APP_NAME },
     ],
     links: [
+      { rel: "icon", type: "image/png", href: "/media/logo-vanan.png" },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/__grok/manifest.webmanifest" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/media/logo-vanan.png", sizes: "180x180" },
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
     ],
   }),
@@ -31,10 +35,13 @@ export const Route = createRootRoute({
         <HeadContent />
       </head>
       <body>
+        <VideoBackground />
         <PreviewHostBridge />
-        <AuthProvider>
-          <Outlet />
-        </AuthProvider>
+        <div className="app-content">
+          <AuthProvider>
+            <Outlet />
+          </AuthProvider>
+        </div>
         <Scripts />
       </body>
     </html>

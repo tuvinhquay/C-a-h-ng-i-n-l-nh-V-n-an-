@@ -10,6 +10,7 @@ import {
   Users,
   Wrench,
   ArrowLeft,
+  BookOpen,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -33,6 +34,7 @@ import { SettingsScreen } from "@/components/screens/settings";
 import { WorkspaceScreen } from "@/components/screens/workspace";
 import { WorkspaceSync } from "@/components/workspace-sync";
 import { AssistantBot } from "@/components/assistant-bot";
+import { GuideScreen } from "@/components/screens/guide";
 import { UserButton } from "@/lib/auth/gates";
 import { Button, errorText, Modal } from "@/components/ui";
 
@@ -143,7 +145,7 @@ function Shell() {
 
   if (!shop.ready) {
     return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg px-6 text-center text-ink">
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center text-ink">
         <Mark />
         <h1 className="text-2xl font-bold">Cửa hàng điện lạnh Vân An</h1>
         <p className="text-base text-muted">Đang mở sổ dữ liệu trên máy…</p>
@@ -153,7 +155,7 @@ function Shell() {
 
   if (shop.error) {
     return (
-      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg px-6 text-center text-ink">
+      <main className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center text-ink">
         <h1 className="text-2xl font-bold">Không mở được sổ</h1>
         <p className="max-w-sm text-base text-muted">{shop.error}</p>
       </main>
@@ -163,7 +165,7 @@ function Shell() {
   const active = tabOf(screen);
 
   return (
-    <div className="min-h-dvh bg-bg text-ink md:flex">
+    <div className="min-h-dvh text-ink md:flex">
       {/* Sidebar desktop */}
       <aside className="no-print sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface/80 backdrop-blur-xl md:flex">
         <div className="flex items-center gap-3 px-4 py-5">
@@ -182,6 +184,7 @@ function Shell() {
           <SideLink active={screen.view === "quotes" || screen.view === "quote"} onClick={() => nav.show({ view: "quotes" })} icon={<ClipboardList className="size-5" />} label="Báo giá" />
           <SideLink active={screen.view === "backup"} onClick={() => nav.show({ view: "backup" })} icon={<Shield className="size-5" />} label="Sao lưu" />
           <SideLink active={screen.view === "workspace"} onClick={() => nav.show({ view: "workspace" })} icon={<Wifi className="size-5" />} label="Thiết bị & đồng bộ" />
+          <SideLink active={screen.view === "guide"} onClick={() => nav.show({ view: "guide" })} icon={<BookOpen className="size-5" />} label="Hướng dẫn sử dụng" />
           <SideLink active={screen.view === "settings"} onClick={() => nav.show({ view: "settings" })} icon={<Settings className="size-5" />} label="Cửa hàng" />
         </div>
         <p className="px-4 py-4 text-sm text-muted">{shop.settings.shopName}</p>
@@ -234,13 +237,14 @@ function Shell() {
           <Button tone="ghost" onClick={() => nav.show({ view: "quotes" })}>Báo giá</Button>
           <Button tone="ghost" onClick={() => nav.show({ view: "backup" })}>Sao lưu và khôi phục</Button>
           <Button tone="ghost" onClick={() => nav.show({ view: "workspace" })}>Thiết bị & đồng bộ</Button>
+          <Button tone="ghost" onClick={() => nav.show({ view: "guide" })}>Hướng dẫn sử dụng</Button>
           <Button tone="ghost" onClick={() => nav.show({ view: "settings" })}>Thông tin cửa hàng</Button>
           {installEvent ? <Button onClick={() => void install()}>Cài ra màn hình chính</Button> : null}
           <div className="border-t border-line pt-3"><UserButton /></div>
         </div>
       </Modal>
 
-      <AssistantBot />
+      <AssistantBot onNavigate={(target) => nav.show(target)} />
 
       {paper ? (
         <>
@@ -307,6 +311,8 @@ function ScreenView({
       return <RepairBillEditor nav={nav} repairId={screen.repairId} />;
     case "backup":
       return <BackupScreen />;
+    case "guide":
+      return <GuideScreen nav={nav} />;
     case "settings":
       return <SettingsScreen canInstall={canInstall} onInstall={onInstall} />;
     case "workspace":

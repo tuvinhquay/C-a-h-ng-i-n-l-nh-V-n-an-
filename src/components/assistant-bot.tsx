@@ -3,10 +3,15 @@ import { Bot, Send, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { useShop } from "@/lib/store";
 import type { Part, PartInput } from "@/lib/types";
+import type { Screen } from "@/lib/nav";
 import { errorText } from "@/components/ui";
 import { findPart, identifyIntent, isGreeting, parseTaughtPart } from "@/lib/assistant";
+import { findGuideTopic, isHelpRequest } from "@/lib/help";
 
-type Message = { id: string; role: "assistant" | "user"; text: string; action?: "confirmTeach" };
+type MessageAction =
+  | { type: "confirmTeach" }
+  | { type: "navigate"; label: string; screen: Screen };
+type Message = { id: string; role: "assistant" | "user"; text: string; action?: MessageAction };
 type PendingTeach = { question: string; teachingText: string };
 
 function formatQuantity(value: number): string {
@@ -23,7 +28,7 @@ function partReply(part: Part): string {
   return `${part.name} hiện còn ${formatQuantity(part.stock)} ${part.unit}${detail ? ` (${detail})` : ""}.`;
 }
 
-export function AssistantBot() {
+export function AssistantBot({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const shop = useShop();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -40,7 +45,7 @@ export function AssistantBot() {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages, open]);
 
-  function answer(text: string, role: Message["role"] = "assistant", action?: Message["action"]) {
+  function answer(text: string, role: Message["role"] = "assistant", action?: MessageAction) {
     setMessages((current) => [...current, { id: crypto.randomUUID(), role, text, action }]);
   }
 
@@ -77,7 +82,7 @@ export function AssistantBot() {
     answer(
       `Tôi sẽ thêm sản phẩm sau khi bạn xác nhận:\nTên/model: ${input.name}\nThương hiệu: ${input.brand || "Chưa rõ"}\nLoại thiết bị: ${input.machineType || "Chưa rõ"}\nSố lượng đầu: ${formatQuantity(input.openingStock)} ${input.unit}${input.color ? `\nMàu: ${input.color}` : ""}${input.location ? `\nVị trí: ${input.location}` : ""}`,
       "assistant",
-      "confirmTeach",
+      { type: "confirmTeach" },
     );
   }
 
@@ -108,6 +113,27 @@ export function AssistantBot() {
   async function respond(text: string) {
     if (pendingConfirmation) {
       answer("Thông tin đang chờ xác nhận. Chọn “Xác nhận thêm” để lưu hoặc “Hủy” để bỏ qua.");
+      return;
+    }
+    if (isHelpRequest(text)) {
+      const topic = findGuideTopic(text);
+      if (topic) {
+        answer(
+          `${topic.title}\n${topic.steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}`,
+          "assistant",
+          {
+            type: "navigate",
+            label: topic.id === "assistant" ? "Mở cẩm nang" : `Mở ${topic.title}`,
+            screen: topic.screen,
+          },
+        );
+      } else {
+        answer(
+          "Bạn muốn được hướng dẫn phần nào? Tôi có thể chỉ cách thêm/nhập linh kiện, lập phiếu sửa, báo giá, hóa đơn, sao lưu, kết nối thiết bị hoặc dùng trợ lý. Hãy nêu tên phần bạn cần, hoặc mở cẩm nang đầy đủ.",
+          "assistant",
+          { type: "navigate", label: "Mở cẩm nang", screen: { view: "guide" } },
+        );
+      }
       return;
     }
     if (pendingTeach) {
@@ -158,12 +184,12 @@ export function AssistantBot() {
     }
     if (isGreeting(text)) {
       answer(
-        "Xin chào! Tôi có thể tra tồn kho, vị trí linh kiện, cảnh báo hàng sắp hết và số phiếu sửa đang mở.",
+        "Xin chào! Tôi có thể tra tồn kho, vị trí linh kiện, hàng sắp hết, phiếu sửa và hướng dẫn bạn từng bước. Hãy thử hỏi “Cách nhập kho thế nào?”.",
       );
       return;
     }
     answer(
-      "Tôi hỗ trợ tra số lượng và vị trí linh kiện, kiểm tra hàng sắp hết, hoặc đếm phiếu sửa đang mở. Bạn thử hỏi: “LG M31UII còn bao nhiêu cái?”",
+      "Tôi hỗ trợ tra số lượng và vị trí linh kiện, kiểm tra hàng sắp hết, đếm phiếu sửa đang mở và hướng dẫn sử dụng từng phần. Ví dụ: “Cách tạo phiếu sửa?” hoặc “LG M31UII còn bao nhiêu cái?”.",
     );
   }
 
@@ -201,7 +227,7 @@ export function AssistantBot() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="font-bold">Trợ lý Vân An</p>
-              <p className="text-xs text-muted">Tra cứu kho · hoạt động ngoại tuyến</p>
+              <p className="text-xs text-muted">Tra cứu kho · hướng dẫn · ngoại tuyến</p>
             </div>
             <button
               type="button"
@@ -230,7 +256,7 @@ export function AssistantBot() {
                   ) : null}
                   {message.text}
                 </p>
-                {message.action === "confirmTeach" ? (
+                {message.action?.type === "confirmTeach" ? (
                   <div className="mt-2 flex gap-2 pl-1">
                     <button
                       type="button"
@@ -249,6 +275,21 @@ export function AssistantBot() {
                       Hủy
                     </button>
                   </div>
+                ) : null}
+                {message.action?.type === "navigate" ? (
+                  <button
+                    type="button"
+                    className="mt-2 min-h-11 rounded-xl border border-pine/30 bg-pine-soft px-3 text-sm font-semibold text-pine"
+                    onClick={() => {
+                      const action = message.action;
+                      if (action?.type === "navigate") {
+                        onNavigate(action.screen);
+                        setOpen(false);
+                      }
+                    }}
+                  >
+                    {message.action.label}
+                  </button>
                 ) : null}
               </div>
             ))}

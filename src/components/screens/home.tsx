@@ -156,6 +156,10 @@ export function HomeScreen({ nav }: { nav: Nav }) {
           </div>
         )}
       </section>
+
+      <footer className="border-t border-line pt-4 text-center text-xs text-muted">
+        Phát triển ứng dụng bởi <span className="font-bold text-pine">Q.89</span>
+      </footer>
     </div>
   );
 }
