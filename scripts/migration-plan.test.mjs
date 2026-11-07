@@ -17,7 +17,7 @@ const AUTH_MIGRATION = "0001_auth.sql";
 
 /**
  * The auth-on copy of the Better Auth schema and its source, or null when the
- * app has not turned sign-in on (the shipped state).
+ * app has not turned sign-in on.
  */
 function authSchemaCopy(root) {
   const copy = join(root, "migrations", AUTH_MIGRATION);
@@ -56,9 +56,12 @@ test("non-.sql entries are dropped (readdir also yields the auth/ directory)", (
   assert.deepEqual(pendingMigrations(["auth", "README.md"], []), []);
 });
 
-test("the auth schema ships outside the globbed directory", () => {
+test("the project ships ordered auth and workspace migrations", () => {
   const migrationsDir = join(projectRoot(), "migrations");
-  assert.deepEqual(pendingMigrations(readdirSync(migrationsDir), []), []);
+  assert.deepEqual(
+    pendingMigrations(readdirSync(migrationsDir), []).map(({ name }) => name),
+    ["0001_auth.sql", "0002_shared_workspaces.sql"],
+  );
   assert.ok(readdirSync(join(migrationsDir, "auth")).includes("0001_auth.sql"));
 });
 

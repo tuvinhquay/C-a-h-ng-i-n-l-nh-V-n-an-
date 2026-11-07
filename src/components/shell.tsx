@@ -10,6 +10,7 @@ import {
   Users,
   Wrench,
   ArrowLeft,
+  Wifi,
   WifiOff,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -29,6 +30,10 @@ import { MovesScreen, PartEditor, PartsScreen } from "@/components/screens/parts
 import { QuoteEditor, QuotesScreen } from "@/components/screens/quotes";
 import { RepairEditor, RepairsScreen } from "@/components/screens/repairs";
 import { SettingsScreen } from "@/components/screens/settings";
+import { WorkspaceScreen } from "@/components/screens/workspace";
+import { WorkspaceSync } from "@/components/workspace-sync";
+import { AssistantBot } from "@/components/assistant-bot";
+import { UserButton } from "@/lib/auth/gates";
 import { Button, errorText, Modal } from "@/components/ui";
 
 interface InstallPrompt extends Event {
@@ -176,9 +181,11 @@ function Shell() {
           <SideLink active={screen.view === "customers" || screen.view === "customer"} onClick={() => nav.show({ view: "customers" })} icon={<Users className="size-5" />} label="Khách hàng" />
           <SideLink active={screen.view === "quotes" || screen.view === "quote"} onClick={() => nav.show({ view: "quotes" })} icon={<ClipboardList className="size-5" />} label="Báo giá" />
           <SideLink active={screen.view === "backup"} onClick={() => nav.show({ view: "backup" })} icon={<Shield className="size-5" />} label="Sao lưu" />
+          <SideLink active={screen.view === "workspace"} onClick={() => nav.show({ view: "workspace" })} icon={<Wifi className="size-5" />} label="Thiết bị & đồng bộ" />
           <SideLink active={screen.view === "settings"} onClick={() => nav.show({ view: "settings" })} icon={<Settings className="size-5" />} label="Cửa hàng" />
         </div>
         <p className="px-4 py-4 text-sm text-muted">{shop.settings.shopName}</p>
+        <div className="px-4 pb-4"><UserButton /></div>
       </aside>
 
       <div className="min-w-0 flex-1">
@@ -196,6 +203,7 @@ function Shell() {
               <p className="truncate text-xs font-semibold text-copper">{shop.settings.shopName || "Cửa hàng điện lạnh Vân An"}</p>
               <h1 className="truncate text-xl font-bold leading-tight">{screenTitle(screen)}</h1>
             </div>
+            <WorkspaceSync />
             {online ? null : (
               <span className="inline-flex items-center gap-1 rounded-full bg-warn-soft px-2 py-1 text-xs font-bold text-warn">
                 <WifiOff className="size-3.5" /> Ngoại tuyến
@@ -225,10 +233,14 @@ function Shell() {
           <Button tone="ghost" onClick={() => nav.show({ view: "customers" })}>Khách hàng</Button>
           <Button tone="ghost" onClick={() => nav.show({ view: "quotes" })}>Báo giá</Button>
           <Button tone="ghost" onClick={() => nav.show({ view: "backup" })}>Sao lưu và khôi phục</Button>
+          <Button tone="ghost" onClick={() => nav.show({ view: "workspace" })}>Thiết bị & đồng bộ</Button>
           <Button tone="ghost" onClick={() => nav.show({ view: "settings" })}>Thông tin cửa hàng</Button>
           {installEvent ? <Button onClick={() => void install()}>Cài ra màn hình chính</Button> : null}
+          <div className="border-t border-line pt-3"><UserButton /></div>
         </div>
       </Modal>
+
+      <AssistantBot />
 
       {paper ? (
         <>
@@ -297,6 +309,8 @@ function ScreenView({
       return <BackupScreen />;
     case "settings":
       return <SettingsScreen canInstall={canInstall} onInstall={onInstall} />;
+    case "workspace":
+      return <WorkspaceScreen nav={nav} />;
     default:
       return null;
   }

@@ -83,6 +83,8 @@ function part(value: unknown): Part {
     name: str(value.name, "part.name"),
     machineType: optStr(value.machineType),
     brand: optStr(value.brand),
+    color: optStr(value.color),
+    location: optStr(value.location),
     unit: optStr(value.unit) || "Cái",
     costPrice: num(value.costPrice, "part.costPrice"),
     sellPrice: num(value.sellPrice, "part.sellPrice"),
@@ -212,6 +214,7 @@ function settingsOf(value: unknown): Settings {
     nextInvoice: intCounter(value.nextInvoice, "settings.nextInvoice"),
     nextSku: intCounter(value.nextSku, "settings.nextSku"),
     lastBackupAt: nullableDate(value.lastBackupAt, "settings.lastBackupAt"),
+    updatedAt: optStr(value.updatedAt) || undefined,
   };
 }
 

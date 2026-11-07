@@ -3,7 +3,7 @@
  * Giao diện không giữ bản sao lệch với kho trên máy.
  */
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   cancelRepair,
   defaultSettings,
@@ -11,6 +11,7 @@ import {
   issueSale,
   importBackup,
   loadSnapshot,
+  loadTombstones,
   patchDoneRepair,
   postStock,
   removeCustomer,
@@ -23,7 +24,7 @@ import {
   saveRepair,
   saveSettings,
   voidInvoice,
-} from "@/lib/db";
+} from "@/lib/local-db";
 import type {
   Customer,
   CustomerInput,
@@ -38,6 +39,8 @@ import type {
   Settings,
   Snapshot,
   StockMove,
+  SyncDocument,
+  SyncTombstone,
 } from "@/lib/types";
 
 interface ShopApi {
@@ -50,6 +53,7 @@ interface ShopApi {
   repairs: Repair[];
   quotes: Quote[];
   invoices: Invoice[];
+  tombstones: SyncTombstone[];
   reload: () => Promise<void>;
   savePart: (input: PartInput, id?: string) => Promise<Part>;
   removePart: (id: string) => Promise<void>;
@@ -68,6 +72,7 @@ interface ShopApi {
   saveSettings: (patch: Partial<Settings>) => Promise<void>;
   markBackup: () => Promise<Settings>;
   restore: (raw: unknown) => Promise<void>;
+  applySyncDocument: (document: SyncDocument) => Promise<void>;
 }
 
 const ShopContext = createContext<ShopApi | null>(null);
@@ -83,6 +88,7 @@ function upsert<T extends { id: string }>(list: T[], item: T): T[] {
 export function ShopProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tombstones, setTombstones] = useState<SyncTombstone[]>([]);
   const [snapshot, setSnapshot] = useState<Snapshot>({
     settings: defaultSettings(),
     parts: [],
@@ -95,16 +101,19 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   const apply = (next: Snapshot) => setSnapshot(next);
 
-  const reload = async () => {
-    apply(await loadSnapshot());
-  };
+  const reload = useCallback(async () => {
+    const [next, deleted] = await Promise.all([loadSnapshot(), loadTombstones()]);
+    apply(next);
+    setTombstones(deleted);
+  }, []);
 
   useEffect(() => {
     let alive = true;
-    loadSnapshot()
-      .then((next) => {
+    Promise.all([loadSnapshot(), loadTombstones()])
+      .then(([next, deleted]) => {
         if (alive) {
           apply(next);
+          setTombstones(deleted);
           setReady(true);
         }
       })
@@ -123,6 +132,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       ready,
       error,
       ...snapshot,
+      tombstones,
       reload,
       async savePart(input, id) {
         const part = await savePart(input, id);
@@ -132,6 +142,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       },
       async removePart(id) {
         await removePart(id);
+        setTombstones(await loadTombstones());
         setSnapshot((current) => ({ ...current, parts: current.parts.filter((item) => item.id !== id) }));
       },
       async postStock(input) {
@@ -147,6 +158,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       },
       async removeCustomer(id) {
         await removeCustomer(id);
+        setTombstones(await loadTombstones());
         setSnapshot((current) => ({ ...current, customers: current.customers.filter((item) => item.id !== id) }));
       },
       async saveRepair(id, input, complete) {
@@ -164,6 +176,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       },
       async removeRepair(id) {
         await removeRepair(id);
+        setTombstones(await loadTombstones());
         setSnapshot((current) => ({ ...current, repairs: current.repairs.filter((item) => item.id !== id) }));
       },
       async cancelRepair(id) {
@@ -181,6 +194,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       },
       async removeQuote(id) {
         await removeQuote(id);
+        setTombstones(await loadTombstones());
         setSnapshot((current) => ({ ...current, quotes: current.quotes.filter((item) => item.id !== id) }));
       },
       async issueSale(input) {
@@ -212,9 +226,20 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       async restore(raw) {
         const next = await importBackup(raw);
         apply(next);
+        setTombstones([]);
+      },
+      async applySyncDocument(document) {
+        const next = await importBackup({
+          ...document.snapshot,
+          app: "so-dien-lanh",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+        }, document.tombstones);
+        apply(next);
+        setTombstones(document.tombstones);
       },
     };
-  }, [ready, error, snapshot]);
+  }, [ready, error, snapshot, tombstones, reload]);
 
   return <ShopContext.Provider value={api}>{children}</ShopContext.Provider>;
 }

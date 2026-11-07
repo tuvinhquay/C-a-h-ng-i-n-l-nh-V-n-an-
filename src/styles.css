@@ -94,6 +94,36 @@
   border-radius: 1.75rem;
 }
 
+.assistant-launch {
+  position: fixed;
+  z-index: 45;
+  right: 1rem;
+  bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+.assistant-panel {
+  position: fixed;
+  z-index: 45;
+  right: 0.75rem;
+  bottom: calc(9.75rem + env(safe-area-inset-bottom));
+  width: min(24rem, calc(100vw - 1.5rem));
+  height: min(38rem, calc(100dvh - 11.5rem));
+  min-height: 20rem;
+}
+
+@media (min-width: 48rem) {
+  .assistant-launch {
+    right: 1.5rem;
+    bottom: 1.5rem;
+  }
+
+  .assistant-panel {
+    right: 1.5rem;
+    bottom: 5.5rem;
+    height: min(40rem, calc(100dvh - 7rem));
+  }
+}
+
 .bg-surface {
   backdrop-filter: blur(16px) saturate(125%);
   -webkit-backdrop-filter: blur(16px) saturate(125%);

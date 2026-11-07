@@ -18,6 +18,8 @@ export interface Part {
   name: string;
   machineType: string;
   brand: string;
+  color: string;
+  location: string;
   unit: string;
   costPrice: number;
   sellPrice: number;
@@ -138,6 +140,7 @@ export interface Settings {
   nextInvoice: number;
   nextSku: number;
   lastBackupAt: string | null;
+  updatedAt?: string;
 }
 
 export interface Snapshot {
@@ -186,6 +189,8 @@ export interface PartInput {
   name: string;
   machineType: string;
   brand: string;
+  color: string;
+  location: string;
   unit: string;
   costPrice: number;
   sellPrice: number;
@@ -193,6 +198,19 @@ export interface PartInput {
   openingStock: number;
   minStock: number;
   note: string;
+}
+
+export type SyncCollection = "parts" | "moves" | "customers" | "repairs" | "quotes" | "invoices";
+
+export interface SyncTombstone {
+  collection: SyncCollection;
+  id: string;
+  deletedAt: string;
+}
+
+export interface SyncDocument {
+  snapshot: Snapshot;
+  tombstones: SyncTombstone[];
 }
 
 export interface CustomerInput {

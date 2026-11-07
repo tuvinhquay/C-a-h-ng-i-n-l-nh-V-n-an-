@@ -17,7 +17,8 @@ export type Screen =
   | { view: "sale" }
   | { view: "repair-bill"; repairId: string }
   | { view: "backup" }
-  | { view: "settings" };
+  | { view: "settings" }
+  | { view: "workspace" };
 
 export type TabName = "home" | "parts" | "repairs" | "invoices";
 
@@ -65,6 +66,8 @@ export function screenTitle(screen: Screen): string {
       return "Sao lưu";
     case "settings":
       return "Cửa hàng";
+    case "workspace":
+      return "Thiết bị & đồng bộ";
     default:
       return "Sổ Điện Lạnh";
   }

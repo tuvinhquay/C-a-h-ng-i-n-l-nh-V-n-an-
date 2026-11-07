@@ -23,7 +23,7 @@ export function PartsScreen({ nav, lowOnly = false }: { nav: Nav; lowOnly?: bool
   const visible = shop.parts.filter((part) => {
     if (onlyLow && !isLowStock(part)) return false;
     if (machine !== "all" && part.machineType !== machine) return false;
-    return matchesQuery(`${part.name} ${part.sku} ${part.brand} ${part.machineType} ${part.note}`, query);
+    return matchesQuery(`${part.name} ${part.sku} ${part.brand} ${part.machineType} ${part.color} ${part.location} ${part.note}`, query);
   });
 
   return (
@@ -68,6 +68,7 @@ export function PartsScreen({ nav, lowOnly = false }: { nav: Nav; lowOnly?: bool
                       {part.sku}
                       {part.brand ? ` · ${part.brand}` : ""}
                       {part.machineType ? ` · ${part.machineType}` : ""}
+                      {part.color ? ` · ${part.color}` : ""}
                     </span>
                   </span>
                   {isLowStock(part) ? <Badge tone="danger">Tồn thấp</Badge> : <Badge tone="ok">Đủ hàng</Badge>}
@@ -78,6 +79,7 @@ export function PartsScreen({ nav, lowOnly = false }: { nav: Nav; lowOnly?: bool
                 <span className="mt-1 block text-sm tabular-nums text-muted">
                   Bán {vnd(part.sellPrice)} · Vốn {vnd(part.costPrice)} · Tối thiểu {qtyText(part.minStock)}
                 </span>
+                {part.location ? <span className="mt-1 block text-sm text-pine">Vị trí: {part.location}</span> : null}
               </button>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <Button tone="pine" onClick={() => setStockPart(part)}>
@@ -111,6 +113,8 @@ export function PartEditor({ nav, id }: { nav: Nav; id?: string }) {
   const [name, setName] = useState(part?.name ?? "");
   const [machineType, setMachineType] = useState(part?.machineType ?? "");
   const [brand, setBrand] = useState(part?.brand ?? "");
+  const [color, setColor] = useState(part?.color ?? "");
+  const [location, setLocation] = useState(part?.location ?? "");
   const [unit, setUnit] = useState(part?.unit ?? "Cái");
   const [costPrice, setCostPrice] = useState(part ? String(part.costPrice) : "");
   const [sellPrice, setSellPrice] = useState(part ? String(part.sellPrice) : "");
@@ -131,6 +135,8 @@ export function PartEditor({ nav, id }: { nav: Nav; id?: string }) {
           name,
           machineType,
           brand,
+          color,
+          location,
           unit,
           costPrice: parseMoney(costPrice),
           sellPrice: parseMoney(sellPrice),
@@ -184,6 +190,12 @@ export function PartEditor({ nav, id }: { nav: Nav; id?: string }) {
         </Field>
         <Field label="Hãng">
           <input className={fieldClass} value={brand} onChange={(event) => setBrand(event.target.value)} />
+        </Field>
+        <Field label="Màu sắc">
+          <input className={fieldClass} value={color} onChange={(event) => setColor(event.target.value)} />
+        </Field>
+        <Field label="Vị trí trong kho" hint="Ví dụ: Khu vực A3, kệ 5, ngăn 2">
+          <input className={fieldClass} value={location} onChange={(event) => setLocation(event.target.value)} />
         </Field>
         <Field label="Giá nhập">
           <input className={fieldClass} inputMode="numeric" value={costPrice} onChange={(event) => setCostPrice(event.target.value)} />
