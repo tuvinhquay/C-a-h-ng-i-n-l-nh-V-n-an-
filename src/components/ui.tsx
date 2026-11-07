@@ -5,7 +5,7 @@ const tones = {
   copper: "bg-copper text-on-copper",
   pine: "bg-pine text-on-pine",
   soft: "bg-pine-soft text-pine",
-  ghost: "border border-line bg-surface text-ink",
+  ghost: "border border-line bg-surface text-ink backdrop-blur-md hover:bg-pine-soft",
   danger: "bg-danger text-on-copper",
 } as const;
 
@@ -25,7 +25,7 @@ export function Button({
 }
 
 export const fieldClass =
-  "min-h-12 w-full rounded-xl border border-line bg-surface px-3 text-base text-ink outline-none placeholder:text-muted";
+  "min-h-12 w-full rounded-xl border border-line bg-surface px-3 text-base text-ink outline-none placeholder:text-muted backdrop-blur-md";
 
 export function Field({
   label,
@@ -84,7 +84,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[92dvh] w-full overflow-y-auto rounded-t-card bg-surface p-4 shadow-xl sm:max-w-lg sm:rounded-card"
+        className="glass max-h-[92dvh] w-full overflow-y-auto rounded-t-card p-4 shadow-xl sm:max-w-lg sm:rounded-card"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between gap-3">
@@ -101,7 +101,7 @@ export function Modal({
 
 export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
-    <div className="rounded-card border border-dashed border-line bg-surface px-4 py-8 text-center">
+    <div className="glass rounded-card border-dashed px-4 py-8 text-center">
       <p className="text-lg font-bold text-ink">{title}</p>
       <p className="mx-auto mt-2 max-w-sm text-base text-pretty text-muted">{body}</p>
       {action ? <div className="mt-4 flex justify-center">{action}</div> : null}

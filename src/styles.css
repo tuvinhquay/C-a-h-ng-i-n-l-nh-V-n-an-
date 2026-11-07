@@ -6,20 +6,19 @@
 @theme {
   --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
 
-  /* Dark theme */
-  --color-bg: #0B0F19;
-  --color-surface: rgba(15, 23, 42, 0.65);
+  --color-bg: #0b0f19;
+  --color-surface: rgba(15, 23, 42, 0.72);
   --color-ink: #f1f5f9;
   --color-muted: #94a3b8;
-  --color-line: rgba(6, 182, 212, 0.25);
+  --color-line: rgba(34, 211, 238, 0.2);
 
   --color-pine: #22d3ee;
-  --color-pine-soft: rgba(6, 182, 212, 0.15);
-  --color-on-pine: #0B0F19;
+  --color-pine-soft: rgba(34, 211, 238, 0.12);
+  --color-on-pine: #0b0f19;
 
   --color-copper: #f97316;
   --color-copper-soft: rgba(249, 115, 22, 0.15);
-  --color-on-copper: #0B0F19;
+  --color-on-copper: #0b0f19;
 
   --color-danger: #f87171;
   --color-danger-soft: rgba(248, 113, 113, 0.15);
@@ -33,46 +32,71 @@
 
 @layer base {
   html {
+    color-scheme: dark;
+    min-width: 320px;
     -webkit-font-smoothing: antialiased;
   }
+
   body {
+    min-height: 100dvh;
     font-family: var(--font-sans);
     background: var(--color-bg);
+    background-image:
+      radial-gradient(ellipse at 10% 0%, rgba(34, 211, 238, 0.07), transparent 34rem),
+      radial-gradient(ellipse at 100% 20%, rgba(249, 115, 22, 0.045), transparent 30rem);
     color: var(--color-ink);
     line-height: 1.5;
   }
-  h1, h2, h3 {
+
+  h1,
+  h2,
+  h3 {
     text-wrap: balance;
   }
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
-  input, select, textarea {
+
+  input,
+  select,
+  textarea {
     font: inherit;
   }
+
   :focus-visible {
     outline: 2px solid var(--color-pine);
     outline-offset: 2px;
   }
 }
 
-/* Glassmorphism utility */
 .glass {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  box-shadow: 0 0 20px rgba(6, 182, 212, 0.08);
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18), inset 0 1px rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
 }
 
 .glass-orange {
-  border-color: rgba(249, 115, 22, 0.3);
-  box-shadow: 0 0 20px rgba(249, 115, 22, 0.1);
+  border-color: rgba(249, 115, 22, 0.32);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18), inset 0 1px rgba(249, 115, 22, 0.08);
 }
 
 .dock {
-  padding-bottom: calc(0.25rem + env(safe-area-inset-bottom));
+  position: fixed;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 50%;
+  width: min(calc(100% - 1.5rem), 32rem);
+  transform: translateX(-50%);
+  padding: 0.35rem 0.5rem;
+  border-radius: 1.75rem;
+}
+
+.bg-surface {
+  backdrop-filter: blur(16px) saturate(125%);
+  -webkit-backdrop-filter: blur(16px) saturate(125%);
 }
 
 .print-root {

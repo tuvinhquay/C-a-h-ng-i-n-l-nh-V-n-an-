@@ -68,8 +68,11 @@ function Shell() {
     window.addEventListener("beforeinstallprompt", onInstall);
     if (import.meta.env.PROD && "serviceWorker" in navigator) {
       const base = import.meta.env.BASE_URL || "/";
-      const url = `\( {base.endsWith("/") ? base : ` \){base}/`}sw.js`;
-      navigator.serviceWorker.register(url).catch(() => undefined);
+      const url = `${base.endsWith("/") ? base : `${base}/`}sw.js`;
+      navigator.serviceWorker.register(url).catch((error: unknown) => {
+        console.error("Không thể kích hoạt chế độ ngoại tuyến.", error);
+        toast.error("Không thể kích hoạt chế độ ngoại tuyến.");
+      });
     }
     return () => {
       window.removeEventListener("online", onOnline);
@@ -206,8 +209,8 @@ function Shell() {
         </main>
 
         {/* Bottom Dock - Glass style */}
-        <nav className="dock no-print fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/80 backdrop-blur-xl md:hidden" aria-label="Mục chính">
-          <div className="mx-auto grid max-w-5xl grid-cols-5">
+        <nav className="dock no-print z-20 glass md:hidden" aria-label="Mục chính">
+          <div className="grid grid-cols-5 gap-1">
             <DockButton active={active === "home"} label="Tổng" onClick={() => nav.tab("home")} icon={<House className="size-5" />} />
             <DockButton active={active === "parts"} label="Kho" onClick={() => nav.tab("parts")} icon={<Package className="size-5" />} />
             <DockButton active={active === "repairs"} label="Sửa" onClick={() => nav.tab("repairs")} icon={<Wrench className="size-5" />} />
@@ -277,7 +280,7 @@ function ScreenView({
     case "repairs":
       return <RepairsScreen nav={nav} filter={screen.filter} />;
     case "repair":
-      return <RepairEditor key={`\( {screen.id ?? "new"}- \){screen.fromQuoteId ?? ""}-${screen.customerId ?? ""}`} nav={nav} id={screen.id} fromQuoteId={screen.fromQuoteId} presetCustomerId={screen.customerId} />;
+      return <RepairEditor key={`${screen.id ?? "new"}-${screen.fromQuoteId ?? ""}-${screen.customerId ?? ""}`} nav={nav} id={screen.id} fromQuoteId={screen.fromQuoteId} presetCustomerId={screen.customerId} />;
     case "quotes":
       return <QuotesScreen nav={nav} />;
     case "quote":

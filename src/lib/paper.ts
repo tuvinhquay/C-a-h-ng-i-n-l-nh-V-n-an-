@@ -131,8 +131,7 @@ function wrapText(text: string, font: MeasureFont, size: number, maxWidth: numbe
 
 export async function paperToPdf(doc: PaperDoc): Promise<Blob> {
   const { PDFDocument, rgb } = await import("pdf-lib");
-  const fontkitMod = (await import("@pdf-lib/fontkit")) as { default?: unknown };
-  const fontkit = fontkitMod.default ?? fontkitMod;
+  const fontkit = await import("@pdf-lib/fontkit");
   warmFonts();
   const [regular, bold] = await Promise.all([regularBytes ?? loadFont(regularUrl), boldBytes ?? loadFont(boldUrl)]);
   const pdf = await PDFDocument.create();
