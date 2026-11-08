@@ -14,6 +14,18 @@ export const Route = createFileRoute("/login")({ component: Login });
 
 type Mode = "sign-in" | "sign-up" | "recover" | "setup";
 
+function authErrorMessage(
+  error: { message?: string | null; status?: number; statusText?: string },
+  fallback: string,
+): string {
+  const message = error.message?.trim();
+  if (message) return message;
+  const statusText = error.statusText?.trim();
+  return error.status
+    ? `${fallback} (HTTP ${error.status}${statusText ? `: ${statusText}` : ""})`
+    : fallback;
+}
+
 const initialRecoveryEntries: RecoveryEntry[] = [
   { questionId: "first_store", answer: "" },
   { questionId: "internal_code", answer: "" },
@@ -184,7 +196,7 @@ function Login() {
           password,
         });
         if (result.error) {
-          setError(result.error.message ?? "Không thể tạo tài khoản.");
+          setError(authErrorMessage(result.error, "Không thể tạo tài khoản."));
           return;
         }
         accountCreated = true;
@@ -200,7 +212,7 @@ function Login() {
           password,
         });
         if (result.error) {
-          setError(result.error.message ?? "Không thể đăng nhập.");
+          setError(authErrorMessage(result.error, "Không thể đăng nhập."));
           return;
         }
         await postRecovery({ action: "setup", entries });
@@ -210,7 +222,7 @@ function Login() {
           password,
         });
         if (result.error) {
-          setError(result.error.message ?? "Không thể đăng nhập.");
+          setError(authErrorMessage(result.error, "Không thể đăng nhập."));
           return;
         }
       }
