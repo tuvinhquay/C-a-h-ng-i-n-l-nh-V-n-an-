@@ -8,7 +8,7 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
-import { ensureDbReady, getPglite } from "../db";
+import { ensureDbReady, getDatabaseUrl, getPglite } from "../db";
 import { accessKeyPlugin } from "./access-key-plugin.server";
 import { pgliteDialect } from "./pglite-dialect";
 import { PREVIEW_ALLOWED_HOSTS } from "./preview";
@@ -78,9 +78,9 @@ const trustedOrigins = (request?: Request): string[] => [
   ...(request ? [new URL(request.url).origin] : []),
 ];
 
-const databaseUrl = env("DATABASE_URL");
+const databaseUrl = getDatabaseUrl();
 
-// Real Postgres when `DATABASE_URL` is set (deployed apps), else the app's
+// Real Postgres when a Postgres URL is set (deployed apps), else the app's
 // embedded PGLite (preview) via a Kysely dialect — so Better Auth persists to the
 // SAME DB as app data and access-key sessions. Both use the Better Auth
 // schema from `migrations/auth/0001_auth.sql`, copied into `migrations/` when

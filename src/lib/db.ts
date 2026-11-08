@@ -12,6 +12,15 @@ export interface Sql {
   query<T extends Row = Row>(text: string, values?: readonly unknown[]): Promise<T[]>;
 }
 
+export function getDatabaseUrl(): string | undefined {
+  return (
+    process.env.DATABASE_URL?.trim() ||
+    process.env.POSTGRES_URL?.trim() ||
+    process.env.POSTGRES_URL_NON_POOLING?.trim() ||
+    undefined
+  );
+}
+
 type Queryable = {
   query<T extends Row>(text: string, values?: readonly unknown[]): Promise<{ rows: T[] }>;
 };
@@ -123,7 +132,7 @@ function createSql(queryable: Queryable): Sql {
 }
 
 export async function getSql(): Promise<Sql> {
-  const connectionString = process.env.DATABASE_URL?.trim();
+  const connectionString = getDatabaseUrl();
   if (connectionString) {
     globalDatabase.__shopPool ??= new pg.Pool({ connectionString, max: 5 });
     await ensurePostgresDbReady(globalDatabase.__shopPool);
@@ -134,4 +143,4 @@ export async function getSql(): Promise<Sql> {
   return createSql(getPglite());
 }
 
-export const dbSource = process.env.DATABASE_URL?.trim() ? "postgres" : "pglite";
+export const dbSource = getDatabaseUrl() ? "postgres" : "pglite";

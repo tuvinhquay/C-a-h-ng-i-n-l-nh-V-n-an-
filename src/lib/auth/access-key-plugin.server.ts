@@ -213,13 +213,20 @@ export function accessKeyPlugin() {
                 ? String(reason.code)
                 : "UNKNOWN";
             const code = /^[0-9A-Z]{5}$/.test(rawCode) ? rawCode : "UNKNOWN";
+            const database = process.env.DATABASE_URL?.trim()
+              ? "DATABASE_URL"
+              : process.env.POSTGRES_URL?.trim()
+                ? "POSTGRES_URL"
+                : process.env.POSTGRES_URL_NON_POOLING?.trim()
+                  ? "POSTGRES_URL_NON_POOLING"
+                  : "PGLite-fallback";
             const message = reason instanceof Error ? reason.message : String(reason);
             console.error(
-              `[auth] access-key status failed (DB ${code}): ${message}`,
+              `[auth] access-key status failed (DB ${code}, ${database}): ${message}`,
             );
             throw APIError.from("INTERNAL_SERVER_ERROR", {
               code: "ACCESS_KEY_STATUS_UNAVAILABLE",
-              message: `Chưa tải được trạng thái đăng nhập (mã chẩn đoán DB: ${code}). Hãy thử tải lại; nếu vẫn lỗi, quản trị viên cần kiểm tra kết nối cơ sở dữ liệu.`,
+              message: `Chưa tải được trạng thái đăng nhập (DB ${code}; nguồn dữ liệu: ${database}). Hãy thử tải lại; nếu vẫn lỗi, quản trị viên cần kiểm tra kết nối cơ sở dữ liệu.`,
             });
           }
         },
