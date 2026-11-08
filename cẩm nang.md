@@ -43,7 +43,7 @@ nguồn đang có.
 │   ├── routes/             # Route TanStack Start
 │   ├── router.tsx          # Khởi tạo router
 │   └── styles.css          # Theme và CSS nền tảng
-├── migrations/             # Schema Better Auth và workspace dùng chung
+├── migrations/             # Schema auth, workspace và phục hồi mật khẩu
 │   └── auth/               # Bản schema Better Auth gốc, không chỉnh sửa
 ├── public/__grok/          # Tài nguyên giao diện/cài đặt do nền tảng quản lý
 ├── scripts/                # Build helper, PWA, preview, kiểm tra và test
@@ -109,9 +109,10 @@ trước/in.
   Postgres thật hoặc PGLite trong preview.
 - Các object store dữ liệu: `parts`, `moves`, `customers`, `repairs`, `quotes`,
   `invoices`; `meta` lưu cài đặt, thiết bị và tombstone xóa.
-- `migrations/0001_auth.sql` tạo schema Better Auth; `migrations/0002_shared_workspaces.sql`
-  tạo hệ thống cửa hàng, thành viên, mã mời, thiết bị, snapshot và lịch sử gần
-  nhất. PGLite preview nằm trong bộ nhớ và sẽ mất khi tiến trình khởi động lại;
+- `migrations/0001_auth.sql` tạo schema Better Auth;
+  `migrations/0002_shared_workspaces.sql` tạo hệ thống cửa hàng, thành viên, mã
+  mời, thiết bị, snapshot và lịch sử gần nhất; `migrations/0003_password_recovery.sql`
+  lưu câu hỏi phục hồi cùng hash/salt và bộ đếm giới hạn thử sai. PGLite preview nằm trong bộ nhớ và sẽ mất khi tiến trình khởi động lại;
   bản triển khai cần Postgres do nền tảng cấp để có lưu trữ bền vững.
 - Khi chưa tạo/tham gia workspace, dữ liệu chỉ có trên thiết bị. Khi workspace
   hoạt động, trình duyệt vẫn ghi IndexedDB trước rồi đồng bộ khi online. Thay
@@ -197,12 +198,15 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
 
 ## 8. Xác thực và đồng bộ hệ thống
 
-- `src/routes/login.tsx` cung cấp đăng nhập/đăng ký email-mật khẩu và Google/X;
-  `src/routes/api/auth/$.ts` gắn Better Auth. Trạng thái auth bật khi bỏ
-  `VITE_AUTH_ENABLED` khỏi `.grok/app-env.json`; email/password bật tại
-  `src/lib/auth/email-password.ts`.
-- `src/lib/auth/` là bộ khung Better Auth/gate. Không sửa `server.ts` hoặc các
-  helper xác thực nền tảng.
+- `src/routes/login.tsx` cung cấp đăng nhập/đăng ký email-mật khẩu và phục hồi
+  bằng 1–2 câu hỏi bí mật; `src/routes/api/auth/$.ts` gắn Better Auth;
+  `src/routes/api/password-recovery.ts` lưu/kiểm tra câu trả lời và đặt lại mật khẩu.
+  Đáp án dùng scrypt với salt ngẫu nhiên; năm lần trả lời sai trong cửa sổ 15
+  phút sẽ khóa thử tiếp trong 15 phút. Không gửi email hoặc OTP.
+- `src/lib/password-recovery.ts` định nghĩa câu hỏi và kiểm tra đầu vào;
+  `src/lib/password-recovery.server.ts` xử lý hash/đối chiếu trên server.
+  `src/lib/auth/server.ts` giữ CSRF, bổ sung origin chính xác của request để
+  đăng nhập ổn định trên host triển khai mà không tắt kiểm tra origin.
 - Mọi server function trong `src/lib/workspace.ts` đều dùng `authMiddleware`.
   `src/lib/workspace.server.ts` chỉ dùng `context.userId` đã xác thực để truy
   vấn membership; không nhận user ID từ client làm quyền.
@@ -223,14 +227,20 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
 
 ### Cách sử dụng
 
-1. Tạo tài khoản tại `/login` bằng email/mật khẩu hoặc Google/X.
-2. Mở “Thiết bị & đồng bộ” → admin chọn “Tạo hệ thống mới”. Sổ cục bộ hiện tại
+1. Tạo tài khoản tại `/login` bằng email/mật khẩu, đồng thời chọn và trả lời
+   một hoặc hai câu hỏi bí mật. Để phục hồi sau này, hãy nhớ đúng câu hỏi và
+   câu trả lời đã chọn.
+2. Nếu quên mật khẩu, tại màn hình đăng nhập chọn “Quên mật khẩu?”, nhập email,
+   chọn đúng câu hỏi đã đăng ký, nhập câu trả lời và mật khẩu mới. Hệ thống
+   không gửi email/OTP; câu trả lời không phân biệt dấu, chữ hoa/thường hoặc
+   khoảng trắng. Sau khi đổi, đăng nhập lại bằng mật khẩu mới.
+3. Mở “Thiết bị & đồng bộ” → admin chọn “Tạo hệ thống mới”. Sổ cục bộ hiện tại
    sẽ được tải làm dữ liệu ban đầu.
-3. Admin chọn “Tạo mã mời”, gửi mã bí mật cho thành viên. Thành viên đăng nhập
+4. Admin chọn “Tạo mã mời”, gửi mã bí mật cho thành viên. Thành viên đăng nhập
    tài khoản riêng, nhập mã tại cùng màn hình rồi xác nhận gộp dữ liệu cục bộ.
-4. Quản trị viên có thể thu hồi mã hoặc xóa thành viên. Tải backup JSON từ màn
+5. Quản trị viên có thể thu hồi mã hoặc xóa thành viên. Tải backup JSON từ màn
    “Sao lưu” trước các thay đổi quan trọng.
-5. Mở biểu tượng robot để tra “LG M31UII còn bao nhiêu cái?”, “linh kiện nào
+6. Mở biểu tượng robot để tra “LG M31UII còn bao nhiêu cái?”, “linh kiện nào
    sắp hết?” hoặc “có bao nhiêu phiếu sửa đang mở?”. Khi chưa biết sản phẩm,
    nhập tên/model, số lượng, màu và vị trí theo yêu cầu bot; kiểm tra thông tin
    bot tóm tắt rồi chọn “Xác nhận thêm” để lưu, hoặc “Hủy” để không thay đổi kho.

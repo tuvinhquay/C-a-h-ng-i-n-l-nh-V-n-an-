@@ -126,7 +126,7 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     title: "Kết nối nhiều thiết bị",
     keywords: ["đồng bộ", "mã mời", "workspace", "kết nối thiết bị", "thành viên", "đăng nhập"],
     steps: [
-      "Đăng nhập tài khoản của bạn. Mỗi thành viên dùng tài khoản riêng.",
+      "Tạo tài khoản bằng email/mật khẩu và chọn 1–2 câu hỏi bí mật để có thể tự phục hồi mật khẩu. Mỗi thành viên dùng tài khoản riêng.",
       "Quản trị viên mở Thiết bị & đồng bộ và tạo hệ thống cửa hàng.",
       "Quản trị viên tạo mã mời rồi gửi mã cho thành viên.",
       "Thành viên đăng nhập trên thiết bị của mình, nhập mã mời và xác nhận tham gia.",

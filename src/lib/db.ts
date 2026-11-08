@@ -2,6 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import pg from "pg";
 import authSchema from "../../migrations/0001_auth.sql?raw";
 import appSchema from "../../migrations/0002_shared_workspaces.sql?raw";
+import recoverySchema from "../../migrations/0003_password_recovery.sql?raw";
 
 type Row = Record<string, unknown>;
 
@@ -30,6 +31,7 @@ export function ensureDbReady(): Promise<void> {
     const client = getPglite();
     await client.exec(authSchema);
     await client.exec(appSchema);
+    await client.exec(recoverySchema);
   })().catch((error: unknown) => {
     globalDatabase.__shopDbReady = undefined;
     throw error;
