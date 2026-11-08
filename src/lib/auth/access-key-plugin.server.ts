@@ -193,19 +193,35 @@ export function accessKeyPlugin() {
         "/access-key/status",
         { method: "GET" },
         async (ctx) => {
-          const sql = await getSql();
-          const rows = await sql.query<{ initialized: boolean; setup_pending: boolean }>(
-            `SELECT
-               EXISTS (SELECT 1 FROM app_access_key WHERE id = 1) AS initialized,
-               EXISTS (
-                 SELECT 1 FROM app_access_key_setup
-                 WHERE id = 1 AND expires_at > now()
-               ) AS setup_pending`,
-          );
-          return ctx.json({
-            initialized: rows[0]?.initialized ?? false,
-            setupPending: rows[0]?.setup_pending ?? false,
-          });
+          try {
+            const sql = await getSql();
+            const rows = await sql.query<{ initialized: boolean; setup_pending: boolean }>(
+              `SELECT
+                 EXISTS (SELECT 1 FROM app_access_key WHERE id = 1) AS initialized,
+                 EXISTS (
+                   SELECT 1 FROM app_access_key_setup
+                   WHERE id = 1 AND expires_at > now()
+                 ) AS setup_pending`,
+            );
+            return ctx.json({
+              initialized: rows[0]?.initialized ?? false,
+              setupPending: rows[0]?.setup_pending ?? false,
+            });
+          } catch (reason) {
+            const rawCode =
+              typeof reason === "object" && reason !== null && "code" in reason
+                ? String(reason.code)
+                : "UNKNOWN";
+            const code = /^[0-9A-Z]{5}$/.test(rawCode) ? rawCode : "UNKNOWN";
+            const message = reason instanceof Error ? reason.message : String(reason);
+            console.error(
+              `[auth] access-key status failed (DB ${code}): ${message}`,
+            );
+            throw APIError.from("INTERNAL_SERVER_ERROR", {
+              code: "ACCESS_KEY_STATUS_UNAVAILABLE",
+              message: `Chưa tải được trạng thái đăng nhập (mã chẩn đoán DB: ${code}). Hãy thử tải lại; nếu vẫn lỗi, quản trị viên cần kiểm tra kết nối cơ sở dữ liệu.`,
+            });
+          }
         },
       ),
       accessKeyBegin: createAuthEndpoint(
