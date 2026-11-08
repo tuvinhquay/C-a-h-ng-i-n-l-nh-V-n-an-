@@ -275,35 +275,31 @@ function Login() {
                   />
                 </label>
               ) : null}
-              {mode !== "sign-up" ? (
-                <>
-                  <label className="grid gap-1.5 text-sm font-semibold">
-                    Email
-                    <input
-                      className={fieldClass}
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                    />
-                  </label>
-                  {mode !== "recover" ? (
-                    <label className="grid gap-1.5 text-sm font-semibold">
-                      Mật khẩu
-                      <input
-                        className={fieldClass}
-                        type="password"
-                        autoComplete="current-password"
-                        minLength={8}
-                        maxLength={128}
-                        required
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                      />
-                    </label>
-                  ) : null}
-                </>
+              <label className="grid gap-1.5 text-sm font-semibold">
+                Email
+                <input
+                  className={fieldClass}
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </label>
+              {mode !== "recover" ? (
+                <label className="grid gap-1.5 text-sm font-semibold">
+                  Mật khẩu
+                  <input
+                    className={fieldClass}
+                    type="password"
+                    autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
+                    minLength={8}
+                    maxLength={128}
+                    required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                </label>
               ) : null}
 
               {mode === "sign-up" || mode === "setup" ? (
