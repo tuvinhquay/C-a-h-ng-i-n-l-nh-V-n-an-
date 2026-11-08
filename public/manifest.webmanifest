@@ -9,9 +9,9 @@
   "theme_color": "#0B0F19",
   "icons": [
     {
-      "src": "/media/logo-vanan.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "/media/logo-vanan.jpg",
+      "sizes": "784x1168",
+      "type": "image/jpeg",
       "purpose": "any"
     }
   ]

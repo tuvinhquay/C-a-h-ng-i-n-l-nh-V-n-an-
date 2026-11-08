@@ -184,7 +184,8 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
   `public/media/videonen.mp4`; lớp phủ tối, fallback và xử lý giảm chuyển động
   nằm trong `src/styles.css`.
 - Logo dùng cho favicon, biểu tượng màn hình chính và manifest tùy chỉnh là
-  `public/media/logo-vanan.png` (ảnh vuông PNG độ phân giải cao, nên dùng 512×512).
+  `public/media/logo-vanan.jpg` (logo JPEG đã có trong repo; nếu thay ảnh, cập nhật
+  đúng đường dẫn và MIME type trong manifest/head).
   Manifest riêng của app ở `public/manifest.webmanifest`; injector nền tảng vẫn
   được giữ nguyên làm lớp PWA dự phòng.
 - `src/lib/paper.ts` dựng `PaperDoc`, làm ấm font, xuất PDF có font Noto Sans và

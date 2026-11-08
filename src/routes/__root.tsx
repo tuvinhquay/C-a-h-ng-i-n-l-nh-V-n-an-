@@ -21,11 +21,11 @@ export const Route = createRootRoute({
       { name: "apple-mobile-web-app-title", content: APP_NAME },
     ],
     links: [
-      { rel: "icon", type: "image/png", href: "/media/logo-vanan.png" },
+      { rel: "icon", type: "image/jpeg", href: "/media/logo-vanan.jpg" },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/media/logo-vanan.png", sizes: "180x180" },
+      { rel: "apple-touch-icon", href: "/media/logo-vanan.jpg" },
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
     ],
   }),
