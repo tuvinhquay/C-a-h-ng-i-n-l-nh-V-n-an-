@@ -112,8 +112,10 @@ trước/in.
 - `migrations/0001_auth.sql` tạo schema Better Auth;
   `migrations/0002_shared_workspaces.sql` tạo hệ thống cửa hàng, thành viên, mã
   mời, thiết bị, snapshot và lịch sử gần nhất; `migrations/0003_password_recovery.sql`
-  lưu câu hỏi phục hồi cùng hash/salt và bộ đếm giới hạn thử sai. PGLite preview nằm trong bộ nhớ và sẽ mất khi tiến trình khởi động lại;
-  bản triển khai cần Postgres do nền tảng cấp để có lưu trữ bền vững.
+  lưu câu hỏi phục hồi cùng hash/salt và bộ đếm giới hạn thử sai;
+  `migrations/0004_access_key.sql` lưu hash mã chủ và phiên đã cấp mã. PGLite
+  preview nằm trong bộ nhớ và sẽ mất khi tiến trình khởi động lại; bản triển khai
+  Vercel cần biến `DATABASE_URL` hoặc `POSTGRES_URL` trỏ tới Postgres bền vững.
 - Khi chưa tạo/tham gia workspace, dữ liệu chỉ có trên thiết bị. Khi workspace
   hoạt động, trình duyệt vẫn ghi IndexedDB trước rồi đồng bộ khi online. Thay
   đổi offline chưa kịp tải lên vẫn có thể mất nếu chính thiết bị đó hỏng.
@@ -273,8 +275,8 @@ Trạng thái kiểm tra khi hoàn tất tính năng:
 
 1. `npm run typecheck`: đạt.
 2. `npm run build`: đạt; bundler có cảnh báo chunk lớn. `db:migrate` bỏ qua
-   triển khai database thật khi `DATABASE_URL` không được cấp trong môi trường
-   này; preview sử dụng PGLite in-memory.
+   triển khai database thật khi không có `DATABASE_URL`/`POSTGRES_URL` trong
+   môi trường này; preview sử dụng PGLite in-memory.
 3. `npm run check:auth`: đạt khi dev server hoạt động; auth build/dev cùng bật.
 4. `npm test`: 196 test đạt, một test tích hợp PWA thất bại do checkout thiếu
    `public/__grok/icon-180.png` (thư mục chỉ có biến thể `icon-180.png.jpg`).

@@ -8,7 +8,7 @@ import {
 } from "better-auth/api";
 import { deleteSessionCookie, setSessionCookie } from "better-auth/cookies";
 import { z } from "zod";
-import { getSql } from "@/lib/db";
+import { getDatabaseUrl, getSql } from "@/lib/db";
 import {
   accessKeyLimits,
   generateAccessKey,
@@ -193,6 +193,13 @@ export function accessKeyPlugin() {
         "/access-key/status",
         { method: "GET" },
         async (ctx) => {
+          if (process.env.VERCEL && !getDatabaseUrl()) {
+            throw APIError.from("SERVICE_UNAVAILABLE", {
+              code: "DATABASE_URL_REQUIRED",
+              message:
+                "Vercel chưa được kết nối cơ sở dữ liệu Postgres bền vững. Hãy thêm DATABASE_URL hoặc POSTGRES_URL trong Environment Variables của project rồi triển khai lại. Mã đã tạo trên PGLite tạm thời không thể dùng chung giữa các lần chạy.",
+            });
+          }
           try {
             const sql = await getSql();
             const rows = await sql.query<{ initialized: boolean; setup_pending: boolean }>(
