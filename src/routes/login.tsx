@@ -1,245 +1,179 @@
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, KeyRound, Snowflake } from "lucide-react";
 import { Button, fieldClass } from "@/components/ui";
-import { authClient, authEnabled, getBearerToken } from "@/lib/auth/client";
 import {
-  parseRecoveryEntries,
-  RECOVERY_QUESTIONS,
-  type RecoveryEntry,
-  type RecoveryQuestionId,
-} from "@/lib/password-recovery";
+  authEnabled,
+  getBearerToken,
+  inLivePreview,
+  setBearerToken,
+} from "@/lib/auth/client";
 
-export const Route = createFileRoute("/login")({ component: Login });
+export const Route = createFileRoute("/login")({ component: AccessKeyLogin });
 
-type Mode = "sign-in" | "sign-up" | "recover" | "setup";
+type Screen =
+  | "loading"
+  | "unavailable"
+  | "ready-to-create"
+  | "setup-pending"
+  | "show-key"
+  | "confirm-key"
+  | "sign-in";
+type AccessKeyStatus = { initialized: boolean; setupPending: boolean };
+type AccessKeyResponse = { key: string; setupToken: string; token?: string };
 
-function authErrorMessage(
-  error: { message?: string | null; status?: number; statusText?: string },
-  fallback: string,
-): string {
-  const message = error.message?.trim();
-  if (message) return message;
-  const statusText = error.statusText?.trim();
-  return error.status
-    ? `${fallback} (HTTP ${error.status}${statusText ? `: ${statusText}` : ""})`
-    : fallback;
-}
-
-const initialRecoveryEntries: RecoveryEntry[] = [
-  { questionId: "first_store", answer: "" },
-  { questionId: "internal_code", answer: "" },
-];
-
-function RecoveryQuestionFields({
-  entries,
-  onChange,
-}: {
-  entries: RecoveryEntry[];
-  onChange: (entries: RecoveryEntry[]) => void;
-}) {
-  return (
-    <div className="grid gap-3">
-      {entries.map((entry, index) => (
-        <fieldset key={index} className="grid gap-2 rounded-2xl border border-line p-3">
-          <legend className="px-1 text-sm font-semibold">Câu hỏi {index + 1}</legend>
-          <label className="grid gap-1.5 text-sm">
-            Câu hỏi bí mật
-            <select
-              className={fieldClass}
-              required
-              value={entry.questionId}
-              onChange={(event) =>
-                onChange(
-                  entries.map((item, itemIndex) =>
-                    itemIndex === index
-                      ? { ...item, questionId: event.target.value as RecoveryQuestionId }
-                      : item,
-                  ),
-                )
-              }
-            >
-              {RECOVERY_QUESTIONS.map((question) => (
-                <option
-                  key={question.id}
-                  value={question.id}
-                  disabled={entries.some(
-                    (item, itemIndex) => itemIndex !== index && item.questionId === question.id,
-                  )}
-                >
-                  {question.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm">
-            Câu trả lời
-            <input
-              className={fieldClass}
-              autoComplete="off"
-              minLength={3}
-              maxLength={160}
-              required
-              value={entry.answer}
-              onChange={(event) =>
-                onChange(
-                  entries.map((item, itemIndex) =>
-                    itemIndex === index ? { ...item, answer: event.target.value } : item,
-                  ),
-                )
-              }
-            />
-          </label>
-          {entries.length === 2 ? (
-            <button
-              type="button"
-              className="min-h-10 justify-self-start text-sm font-semibold text-copper"
-              onClick={() => onChange(entries.filter((_, itemIndex) => itemIndex !== index))}
-            >
-              Bỏ câu hỏi này
-            </button>
-          ) : null}
-        </fieldset>
-      ))}
-      {entries.length < 2 ? (
-        <button
-          type="button"
-          className="min-h-11 justify-self-start text-sm font-semibold text-pine"
-          onClick={() =>
-            onChange([
-              ...entries,
-              {
-                questionId: RECOVERY_QUESTIONS.find(
-                  (question) => !entries.some((entry) => entry.questionId === question.id),
-                )!.id,
-                answer: "",
-              },
-            ])
-          }
-        >
-          + Thêm câu hỏi thứ hai
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-async function postRecovery(payload: Record<string, unknown>): Promise<void> {
-  const headers = new Headers({ "content-type": "application/json" });
+async function accessKeyRequest<T>(
+  path: string,
+  payload?: Record<string, unknown>,
+): Promise<T> {
+  const headers = new Headers();
   const bearer = getBearerToken();
   if (bearer) headers.set("authorization", `Bearer ${bearer}`);
-
-  const response = await fetch("/api/password-recovery", {
-    method: "POST",
-    credentials: "same-origin",
-    headers,
-    body: JSON.stringify(payload),
-  });
-  const result = (await response.json()) as { error?: string };
-  if (!response.ok) {
-    throw new Error(result.error ?? "Không thể hoàn tất yêu cầu.");
+  if (payload) headers.set("content-type", "application/json");
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 15_000);
+  let response: Response;
+  try {
+    response = await fetch(`/api/auth/access-key/${path}`, {
+      method: payload ? "POST" : "GET",
+      credentials: "same-origin",
+      headers,
+      signal: controller.signal,
+      ...(payload ? { body: JSON.stringify(payload) } : {}),
+    });
+  } catch (reason) {
+    if (reason instanceof DOMException && reason.name === "AbortError") {
+      throw new Error("Máy chủ chưa phản hồi. Hãy kiểm tra kết nối rồi thử lại.");
+    }
+    throw new Error("Không kết nối được máy chủ. Hãy kiểm tra mạng rồi thử lại.");
+  } finally {
+    window.clearTimeout(timeout);
   }
+  const result = (await response.json().catch(() => null)) as {
+    message?: string;
+    error?: string;
+    key?: string;
+    setupToken?: string;
+    token?: string;
+    initialized?: boolean;
+    setupPending?: boolean;
+  } | null;
+  if (!response.ok) {
+    throw new Error(
+      result?.message ??
+        result?.error ??
+        `Không thể hoàn tất yêu cầu (HTTP ${response.status}).`,
+    );
+  }
+  if (!result) throw new Error("Máy chủ trả về dữ liệu không hợp lệ. Hãy thử lại.");
+  return result as T;
 }
 
-function Login() {
+function AccessKeyLogin() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<Mode>("sign-in");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [recoveryEntries, setRecoveryEntries] = useState(initialRecoveryEntries);
+  const [screen, setScreen] = useState<Screen>("loading");
+  const [generatedKey, setGeneratedKey] = useState("");
+  const [setupToken, setSetupToken] = useState("");
+  const [enteredKey, setEnteredKey] = useState("");
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const initialCheck = useRef(false);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const checkStatus = useCallback(async () => {
+    setScreen("loading");
     setError("");
-    setNotice("");
-    setBusy(true);
-    let accountCreated = false;
     try {
-      if (mode === "recover") {
-        if (password !== confirmPassword) {
-          setError("Hai mật khẩu chưa trùng nhau.");
-          return;
-        }
-        const entries = parseRecoveryEntries(recoveryEntries);
-        if (!entries) {
-          setError("Hãy chọn và trả lời 1 hoặc 2 câu hỏi bảo mật.");
-          return;
-        }
-        await postRecovery({
-          action: "reset",
-          email: email.trim(),
-          entries,
-          newPassword: password,
-        });
-        setPassword("");
-        setConfirmPassword("");
-        setRecoveryEntries(initialRecoveryEntries);
-        setMode("sign-in");
-        setNotice("Đã đổi mật khẩu. Hãy đăng nhập bằng mật khẩu mới.");
-        return;
-      }
-
-      if (mode === "sign-up") {
-        const entries = parseRecoveryEntries(recoveryEntries);
-        if (!entries) {
-          setError("Hãy chọn và trả lời 1 hoặc 2 câu hỏi bảo mật.");
-          return;
-        }
-        const result = await authClient.signUp.email({
-          name: name.trim(),
-          email: email.trim(),
-          password,
-        });
-        if (result.error) {
-          setError(authErrorMessage(result.error, "Không thể tạo tài khoản."));
-          return;
-        }
-        accountCreated = true;
-        await postRecovery({ action: "setup", entries });
-      } else if (mode === "setup") {
-        const entries = parseRecoveryEntries(recoveryEntries);
-        if (!entries) {
-          setError("Hãy chọn và trả lời 1 hoặc 2 câu hỏi bảo mật.");
-          return;
-        }
-        const result = await authClient.signIn.email({
-          email: email.trim(),
-          password,
-        });
-        if (result.error) {
-          setError(authErrorMessage(result.error, "Không thể đăng nhập."));
-          return;
-        }
-        await postRecovery({ action: "setup", entries });
+      const status = await accessKeyRequest<AccessKeyStatus>("status");
+      if (status.initialized) {
+        setScreen("sign-in");
+      } else if (status.setupPending) {
+        setScreen("setup-pending");
       } else {
-        const result = await authClient.signIn.email({
-          email: email.trim(),
-          password,
-        });
-        if (result.error) {
-          setError(authErrorMessage(result.error, "Không thể đăng nhập."));
-          return;
-        }
+        setScreen("ready-to-create");
       }
-
-      await navigate({ to: "/", replace: true });
     } catch (reason) {
-      setError(
-        accountCreated
-          ? "Tài khoản đã được tạo nhưng chưa lưu được câu hỏi bảo mật. Hãy đăng nhập, chọn “Thiết lập câu hỏi phục hồi” rồi thử lại."
-          : reason instanceof Error
-            ? reason.message
-            : "Không thể hoàn tất yêu cầu.",
-      );
+      setError(reason instanceof Error ? reason.message : "Không kiểm tra được hệ thống.");
+      setScreen("unavailable");
+    }
+  }, []);
+
+  function applySetup(result: AccessKeyResponse) {
+    setGeneratedKey(result.key);
+    setSetupToken(result.setupToken);
+    setEnteredKey("");
+    setError("");
+    setScreen("show-key");
+  }
+
+  async function beginSetup(restart: boolean) {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await accessKeyRequest<AccessKeyResponse>("begin", { restart });
+      applySetup(result);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "Không thể tạo mã bí mật.";
+      if (message.includes("Mã chủ đã được thiết lập")) {
+        await checkStatus();
+      } else {
+        setError(message);
+      }
     } finally {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (initialCheck.current) return;
+    initialCheck.current = true;
+    if (!authEnabled) {
+      setError("Đăng nhập chưa được bật trên hệ thống này.");
+      setScreen("unavailable");
+      return;
+    }
+    void checkStatus();
+  }, [checkStatus]);
+
+  async function confirmSetup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await accessKeyRequest<AccessKeyResponse>("confirm", {
+        key: enteredKey,
+        setupToken,
+      });
+      if (inLivePreview() && result.token) setBearerToken(result.token);
+      setGeneratedKey("");
+      setSetupToken("");
+      await navigate({ to: "/", replace: true });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Không thể xác nhận mã.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await accessKeyRequest<AccessKeyResponse>("sign-in", { key: enteredKey });
+      if (inLivePreview() && result.token) setBearerToken(result.token);
+      setEnteredKey("");
+      await navigate({ to: "/", replace: true });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Không thể đăng nhập bằng mã này.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const heading =
+    screen === "show-key" || screen === "confirm-key" || screen === "setup-pending" || screen === "ready-to-create"
+      ? "Tạo mã chủ hệ thống"
+      : "Đăng nhập bằng mã";
 
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-8">
@@ -256,206 +190,144 @@ function Login() {
           </span>
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-copper">Vân An</p>
-            <h1 className="text-xl font-bold">
-              {mode === "recover"
-                ? "Phục hồi mật khẩu"
-                : mode === "setup"
-                  ? "Thiết lập câu hỏi bảo mật"
-                  : mode === "sign-up"
-                    ? "Tạo tài khoản nội bộ"
-                    : "Đăng nhập nội bộ"}
-            </h1>
+            <h1 className="text-xl font-bold">{heading}</h1>
           </div>
         </div>
 
-        <p className="mb-6 text-sm text-muted">
-          Dữ liệu được lưu ngay trên thiết bị và đồng bộ khi có mạng.
+        <p className="mb-4 text-sm text-muted">
+          Mã chủ là cách duy nhất để đăng nhập trên các thiết bị.
         </p>
 
-        {authEnabled ? (
-          <>
-            <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
-              {mode === "sign-up" ? (
-                <label className="grid gap-1.5 text-sm font-semibold">
-                  Tên hiển thị
-                  <input
-                    className={fieldClass}
-                    autoComplete="name"
-                    required
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </label>
-              ) : null}
-              <label className="grid gap-1.5 text-sm font-semibold">
-                Email
-                <input
-                  className={fieldClass}
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </label>
-              {mode !== "recover" ? (
-                <label className="grid gap-1.5 text-sm font-semibold">
-                  Mật khẩu
-                  <input
-                    className={fieldClass}
-                    type="password"
-                    autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
-                    minLength={8}
-                    maxLength={128}
-                    required
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                  />
-                </label>
-              ) : null}
+        {screen === "loading" ? (
+          <div className="grid gap-3">
+            <p role="status" className="text-sm text-muted">Đang kiểm tra hệ thống…</p>
+            <Button type="button" tone="ghost" onClick={() => void checkStatus()}>
+              Kiểm tra lại
+            </Button>
+            <Button type="button" disabled={busy} onClick={() => void beginSetup(false)}>
+              <KeyRound className="size-4" />
+              {busy ? "Đang tạo mã tự động…" : "Tạo mã tự động"}
+            </Button>
+          </div>
+        ) : null}
 
-              {mode === "sign-up" || mode === "setup" ? (
-                <div className="grid gap-2">
-                  <div>
-                    <h2 className="text-sm font-bold">Câu hỏi phục hồi mật khẩu</h2>
-                    <p className="mt-1 text-xs leading-relaxed text-muted">
-                      Chọn 1 hoặc 2 câu. Câu trả lời không phân biệt dấu, chữ hoa/thường hoặc khoảng
-                      trắng.
-                    </p>
-                  </div>
-                  <RecoveryQuestionFields entries={recoveryEntries} onChange={setRecoveryEntries} />
-                </div>
-              ) : null}
+        {screen === "unavailable" ? (
+          <div className="grid gap-3">
+            <p className="rounded-xl border border-danger/30 bg-danger-soft p-3 text-sm leading-relaxed text-danger">
+              {error || "Chưa kết nối được máy chủ xác thực."}
+            </p>
+            <Button type="button" disabled={busy} onClick={() => void checkStatus()}>
+              Thử lại
+            </Button>
+          </div>
+        ) : null}
 
-              {mode === "recover" ? (
-                <>
-                  <div>
-                    <h2 className="text-sm font-bold">Trả lời câu hỏi đã chọn khi đăng ký</h2>
-                    <p className="mt-1 text-xs leading-relaxed text-muted">
-                      Chọn đúng câu hỏi và nhập câu trả lời đã đăng ký. Không gửi email hoặc mã OTP.
-                    </p>
-                  </div>
-                  <RecoveryQuestionFields entries={recoveryEntries} onChange={setRecoveryEntries} />
-                  <label className="grid gap-1.5 text-sm font-semibold">
-                    Mật khẩu mới
-                    <input
-                      className={fieldClass}
-                      type="password"
-                      autoComplete="new-password"
-                      minLength={8}
-                      maxLength={128}
-                      required
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                    />
-                  </label>
-                  <label className="grid gap-1.5 text-sm font-semibold">
-                    Nhập lại mật khẩu mới
-                    <input
-                      className={fieldClass}
-                      type="password"
-                      autoComplete="new-password"
-                      minLength={8}
-                      maxLength={128}
-                      required
-                      value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                    />
-                  </label>
-                </>
-              ) : null}
+        {screen === "ready-to-create" ? (
+          <div className="grid gap-4">
+            <div className="rounded-xl border border-copper/40 bg-copper/10 p-3 text-sm leading-relaxed">
+              Tạo mã dùng chung cho tất cả thiết bị. Ai có mã đều có cùng quyền truy cập và cùng dữ liệu.
+              Hãy lưu mã an toàn; nếu mất, hệ thống không thể khôi phục.
+            </div>
+            <Button type="button" disabled={busy} onClick={() => void beginSetup(false)}>
+              <KeyRound className="size-4" />
+              {busy ? "Đang tạo mã tự động…" : "Tạo mã tự động"}
+            </Button>
+          </div>
+        ) : null}
 
-              {notice ? (
-                <p role="status" className="rounded-xl bg-pine-soft p-3 text-sm text-pine">
-                  {notice}
-                </p>
-              ) : null}
-              {error ? (
-                <p role="alert" className="rounded-xl bg-danger-soft p-3 text-sm text-danger">
-                  {error}
-                </p>
-              ) : null}
-              <Button type="submit" disabled={busy}>
-                <KeyRound className="size-4" />
-                {busy
-                  ? "Đang xử lý…"
-                  : mode === "recover"
-                    ? "Đặt lại mật khẩu"
-                    : mode === "setup"
-                      ? "Lưu câu hỏi bảo mật"
-                      : mode === "sign-up"
-                        ? "Tạo tài khoản"
-                        : "Đăng nhập"}
-              </Button>
-            </form>
+        {screen === "setup-pending" ? (
+          <div className="grid gap-3">
+            <p className="rounded-xl border border-copper/40 bg-copper/10 p-3 text-sm leading-relaxed">
+              Quá trình tạo mã trước đó chưa hoàn tất hoặc mã chỉ được hiển thị một lần. Tạo mã mới
+              sẽ thay thế bản thiết lập đang chờ.
+            </p>
+            <Button type="button" disabled={busy} onClick={() => void beginSetup(true)}>
+              {busy ? "Đang tạo mã…" : "Tạo mã mới"}
+            </Button>
+          </div>
+        ) : null}
 
-            {mode === "sign-in" ? (
-              <>
-                <button
-                  type="button"
-                  className="mt-3 min-h-11 w-full text-sm font-semibold text-copper"
-                  onClick={() => {
-                    setError("");
-                    setNotice("");
-                    setRecoveryEntries(initialRecoveryEntries);
-                    setMode("recover");
-                  }}
-                >
-                  Quên mật khẩu?
-                </button>
-                <button
-                  type="button"
-                  className="min-h-11 w-full text-sm font-semibold text-pine"
-                  onClick={() => {
-                    setError("");
-                    setNotice("");
-                    setMode("sign-up");
-                  }}
-                >
-                  Tạo tài khoản mới
-                </button>
-                <button
-                  type="button"
-                  className="min-h-11 w-full text-sm font-semibold text-pine"
-                  onClick={() => {
-                    setError("");
-                    setNotice("");
-                    setRecoveryEntries(initialRecoveryEntries);
-                    setMode("setup");
-                  }}
-                >
-                  Thiết lập câu hỏi phục hồi
-                </button>
-              </>
-            ) : mode === "recover" ? (
-              <button
-                type="button"
-                className="mt-4 min-h-11 w-full text-sm font-semibold text-pine"
-                onClick={() => {
-                  setError("");
-                  setNotice("");
-                  setMode("sign-in");
-                }}
-              >
-                Quay lại đăng nhập
-              </button>
-            ) : mode === "setup" || mode === "sign-up" ? (
-              <button
-                type="button"
-                className="mt-4 min-h-11 w-full text-sm font-semibold text-pine"
-                onClick={() => {
-                  setError("");
-                  setNotice("");
-                  setMode("sign-in");
-                }}
-              >
-                Đã có tài khoản? Đăng nhập
-              </button>
-            ) : null}
-          </>
-        ) : (
-          <p className="rounded-xl bg-warn-soft p-3 text-sm text-warn">Đăng nhập chưa được bật.</p>
-        )}
+        {screen === "show-key" ? (
+          <div className="grid gap-4">
+            <div className="rounded-xl border border-copper/50 bg-copper/10 p-3 text-sm leading-relaxed">
+              Hãy lưu mã này ở nơi an toàn. Bất kỳ ai có mã đều đăng nhập với cùng quyền và truy cập
+              toàn bộ dữ liệu; nếu mất mã, hệ thống không thể khôi phục.
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-semibold">Mã bí mật của hệ thống</p>
+              <output className="block select-all break-all rounded-xl border border-pine/40 bg-black/30 px-4 py-5 text-center font-mono text-lg font-bold tracking-wider text-pine">
+                {generatedKey}
+              </output>
+            </div>
+            <Button type="button" onClick={() => setScreen("confirm-key")}>
+              Tôi đã lưu mã
+            </Button>
+            <p className="text-xs leading-relaxed text-muted">
+            Sau khi xác nhận mã đã lưu, bạn cần nhập lại mã một lần nữa để kích hoạt và vào ứng dụng.
+            </p>
+          </div>
+        ) : null}
+
+        {screen === "confirm-key" ? (
+          <form className="grid gap-3" onSubmit={(event) => void confirmSetup(event)}>
+            <p className="text-sm leading-relaxed text-muted">
+              Nhập lại mã bí mật bạn vừa lưu. Mã chỉ được kích hoạt sau khi xác nhận thành công.
+            </p>
+            <label className="grid gap-1.5 text-sm font-semibold">
+              Xác nhận mã bí mật
+              <input
+                className={fieldClass}
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                required
+                value={enteredKey}
+                onChange={(event) => setEnteredKey(event.target.value)}
+              />
+            </label>
+            <Button type="submit" disabled={busy}>
+              <KeyRound className="size-4" />
+              {busy ? "Đang xác nhận…" : "Xác nhận và kích hoạt mã"}
+            </Button>
+            <button
+              type="button"
+              className="min-h-11 text-sm font-semibold text-muted"
+              onClick={() => setScreen("show-key")}
+            >
+              Xem lại mã đã tạo
+            </button>
+          </form>
+        ) : null}
+
+        {screen === "sign-in" ? (
+          <form className="grid gap-3" onSubmit={(event) => void signIn(event)}>
+            <label className="grid gap-1.5 text-sm font-semibold">
+              Mã bí mật
+              <input
+                className={fieldClass}
+                autoComplete="current-password"
+                autoCapitalize="characters"
+                spellCheck={false}
+                required
+                value={enteredKey}
+                onChange={(event) => setEnteredKey(event.target.value)}
+              />
+            </label>
+            <Button type="submit" disabled={busy}>
+              <KeyRound className="size-4" />
+              {busy ? "Đang đăng nhập…" : "Đăng nhập"}
+            </Button>
+            <p className="text-xs leading-relaxed text-muted">
+              Không gửi mã cho người lạ. Nếu đã mất mã, hệ thống không thể khôi phục tài khoản.
+            </p>
+          </form>
+        ) : null}
+
+        {error ? (
+          <p role="alert" className="mt-4 rounded-xl bg-danger-soft p-3 text-sm text-danger">
+            {error}
+          </p>
+        ) : null}
       </section>
     </main>
   );

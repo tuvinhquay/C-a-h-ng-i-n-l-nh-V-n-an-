@@ -43,7 +43,7 @@ nguồn đang có.
 │   ├── routes/             # Route TanStack Start
 │   ├── router.tsx          # Khởi tạo router
 │   └── styles.css          # Theme và CSS nền tảng
-├── migrations/             # Schema auth, workspace và phục hồi mật khẩu
+├── migrations/             # Schema auth, workspace, phục hồi cũ và mã chủ
 │   └── auth/               # Bản schema Better Auth gốc, không chỉnh sửa
 ├── public/__grok/          # Tài nguyên giao diện/cài đặt do nền tảng quản lý
 ├── scripts/                # Build helper, PWA, preview, kiểm tra và test
@@ -198,26 +198,29 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
 
 ## 8. Xác thực và đồng bộ hệ thống
 
-- `src/routes/login.tsx` cung cấp đăng nhập/đăng ký email-mật khẩu và phục hồi
-  bằng 1–2 câu hỏi bí mật; `src/routes/api/auth/$.ts` gắn Better Auth;
-  `src/routes/api/password-recovery.ts` lưu/kiểm tra câu trả lời và đặt lại mật khẩu.
-  Đáp án dùng scrypt với salt ngẫu nhiên; năm lần trả lời sai trong cửa sổ 15
-  phút sẽ khóa thử tiếp trong 15 phút. Không gửi email hoặc OTP.
-- `src/lib/password-recovery.ts` định nghĩa câu hỏi và kiểm tra đầu vào;
-  `src/lib/password-recovery.server.ts` xử lý hash/đối chiếu trên server.
-  `src/lib/auth/server.ts` giữ CSRF, bổ sung origin chính xác của request để
-  đăng nhập ổn định trên host triển khai mà không tắt kiểm tra origin.
+- `src/routes/login.tsx` tự khởi tạo mã chủ ở lần đầu, yêu cầu nhập lại mã
+  trước khi kích hoạt, và chỉ giữ một ô nhập mã cho các lần đăng nhập sau.
+  `src/lib/auth/access-key-plugin.server.ts` triển khai API khởi tạo, xác nhận,
+  đăng nhập và phiên Better Auth; `src/lib/auth/access-key.server.ts` sinh mã
+  ngẫu nhiên, hash bằng scrypt và so sánh an toàn.
+- `migrations/0004_access_key.sql` lưu hash mã, bản thiết lập tạm có hạn 15
+  phút, giới hạn thử đăng nhập và đánh dấu phiên được tạo bằng mã. Mã rõ chỉ
+  được gửi cho trình duyệt khi tạo; máy chủ chỉ lưu hash. Email/mật khẩu,
+  Google/X và phục hồi cũ đã bị tắt.
+- Mã chủ không thể khôi phục nếu bị mất. Năm lần nhập sai trong 15 phút khóa
+  thử tiếp 15 phút. Người đầu tiên khởi tạo trở thành chủ; mã dùng chung khiến
+  mọi thiết bị cùng một danh tính, không có lịch sử riêng từng thành viên.
 - Mọi server function trong `src/lib/workspace.ts` đều dùng `authMiddleware`.
   `src/lib/workspace.server.ts` chỉ dùng `context.userId` đã xác thực để truy
   vấn membership; không nhận user ID từ client làm quyền.
-- Mã mời bắt đầu bằng `VA-`, lưu trên server dưới dạng SHA-256, hết hạn sau 7
-  ngày, tối đa 20 lần dùng và có thể thu hồi. Workspace ID chỉ là định danh,
-  không phải bí mật hay thông tin đăng nhập.
+- Workspace ID chỉ là định danh, không phải bí mật hay thông tin đăng nhập.
+  Quy trình mã mời/tài khoản thành viên riêng đã ẩn khỏi giao diện do tất cả
+  thiết bị hiện dùng chung mã chủ.
 - `src/components/workspace-sync.tsx` đồng bộ mỗi 15 giây và khi mạng trở lại.
   Đây không phải LAN-only/P2P; cần máy chủ có kết nối Internet để chuyển dữ liệu
   giữa thiết bị. Khi offline, thao tác tiếp tục trên IndexedDB.
-- Quản trị viên xem thiết bị hoạt động trong 90 giây gần nhất, thu hồi mã mời
-  và xóa thành viên. Thành viên dùng tài khoản riêng.
+- Thiết bị cùng mã chủ dùng chung danh tính hệ thống; hiện không hỗ trợ cấp
+  tài khoản riêng hoặc thu hồi từng thành viên.
 - Bot chạy nhận diện ý định hoàn toàn cục bộ (không gọi API AI); sản phẩm được
   dạy trở thành dữ liệu kho bình thường và đồng bộ theo cơ chế chung.
 - `src/lib/help.ts` là nguồn nội dung dùng chung của cẩm nang và bot; hỏi cách
@@ -227,20 +230,16 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
 
 ### Cách sử dụng
 
-1. Tạo tài khoản tại `/login` bằng email/mật khẩu, đồng thời chọn và trả lời
-   một hoặc hai câu hỏi bí mật. Để phục hồi sau này, hãy nhớ đúng câu hỏi và
-   câu trả lời đã chọn.
-2. Nếu quên mật khẩu, tại màn hình đăng nhập chọn “Quên mật khẩu?”, nhập email,
-   chọn đúng câu hỏi đã đăng ký, nhập câu trả lời và mật khẩu mới. Hệ thống
-   không gửi email/OTP; câu trả lời không phân biệt dấu, chữ hoa/thường hoặc
-   khoảng trắng. Sau khi đổi, đăng nhập lại bằng mật khẩu mới.
-3. Mở “Thiết bị & đồng bộ” → admin chọn “Tạo hệ thống mới”. Sổ cục bộ hiện tại
+1. Lần đầu mở `/login`, hệ thống tự tạo mã chủ. Lưu mã ở nơi an toàn, bấm
+   “Tôi đã lưu mã”, nhập lại để xác nhận. Mất mã sẽ không thể đăng nhập lại;
+   không có email, OTP hay câu hỏi bí mật để khôi phục.
+2. Trên thiết bị khác mở cùng ứng dụng, nhập cùng mã chủ. Chia sẻ mã chỉ với
+   người được phép truy cập toàn bộ sổ; mọi thiết bị sẽ là cùng một tài khoản.
+3. Mở “Thiết bị & đồng bộ” → chọn “Tạo hệ thống mới”. Sổ cục bộ hiện tại
    sẽ được tải làm dữ liệu ban đầu.
-4. Admin chọn “Tạo mã mời”, gửi mã bí mật cho thành viên. Thành viên đăng nhập
-   tài khoản riêng, nhập mã tại cùng màn hình rồi xác nhận gộp dữ liệu cục bộ.
-5. Quản trị viên có thể thu hồi mã hoặc xóa thành viên. Tải backup JSON từ màn
-   “Sao lưu” trước các thay đổi quan trọng.
-6. Mở biểu tượng robot để tra “LG M31UII còn bao nhiêu cái?”, “linh kiện nào
+4. Tải backup JSON từ màn “Sao lưu” trước các thay đổi quan trọng. Dữ liệu
+   đồng bộ giữa thiết bị qua máy chủ; dùng được ngoại tuyến trên từng máy.
+5. Mở biểu tượng robot để tra “LG M31UII còn bao nhiêu cái?”, “linh kiện nào
    sắp hết?” hoặc “có bao nhiêu phiếu sửa đang mở?”. Khi chưa biết sản phẩm,
    nhập tên/model, số lượng, màu và vị trí theo yêu cầu bot; kiểm tra thông tin
    bot tóm tắt rồi chọn “Xác nhận thêm” để lưu, hoặc “Hủy” để không thay đổi kho.

@@ -60,7 +60,12 @@ test("the project ships ordered auth and workspace migrations", () => {
   const migrationsDir = join(projectRoot(), "migrations");
   assert.deepEqual(
     pendingMigrations(readdirSync(migrationsDir), []).map(({ name }) => name),
-    ["0001_auth.sql", "0002_shared_workspaces.sql", "0003_password_recovery.sql"],
+    [
+      "0001_auth.sql",
+      "0002_shared_workspaces.sql",
+      "0003_password_recovery.sql",
+      "0004_access_key.sql",
+    ],
   );
   assert.ok(readdirSync(join(migrationsDir, "auth")).includes("0001_auth.sql"));
 });

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Cloud, Copy, KeyRound, RefreshCw, Shield, UserRound, Wifi, WifiOff } from "lucide-react";
+import { Cloud, RefreshCw, Shield, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button, Badge, EmptyState, Field, errorText, fieldClass } from "@/components/ui";
 import { getDeviceIdentity } from "@/lib/local-db";
-import { createWorkspace, createWorkspaceInvite, getWorkspace, joinWorkspace, removeWorkspaceMember, revokeWorkspaceInvite, syncWorkspace } from "@/lib/workspace";
+import { createWorkspace, getWorkspace } from "@/lib/workspace";
 import { useShop } from "@/lib/store";
 import type { SyncDocument } from "@/lib/types";
 import type { Nav } from "@/lib/nav";
@@ -31,8 +31,6 @@ export function WorkspaceScreen({ nav }: { nav: Nav }) {
   const [device, setDevice] = useState<DeviceIdentity | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [name, setName] = useState(shop.settings.shopName);
-  const [inviteCode, setInviteCode] = useState("");
-  const [newInvite, setNewInvite] = useState<{ token: string; inviteId: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -106,76 +104,6 @@ export function WorkspaceScreen({ nav }: { nav: Nav }) {
     }
   }
 
-  async function join() {
-    if (!device) return;
-    const hasLocalData = shop.parts.length + shop.moves.length + shop.customers.length + shop.repairs.length + shop.quotes.length + shop.invoices.length > 0;
-    if (hasLocalData && !window.confirm("Sổ dữ liệu hiện có trên thiết bị sẽ được gộp vào hệ thống được mời. Bạn đã sao lưu và muốn tiếp tục chứ?")) return;
-    setBusy(true);
-    try {
-      await joinWorkspace({ data: { token: inviteCode, device } });
-      const current = await syncWorkspace({ data: { device, document: documentOf(shop) } });
-      await shop.applySyncDocument(current.document);
-      setInviteCode("");
-      toast.success("Thiết bị đã kết nối và đồng bộ dữ liệu.");
-      await refresh(device);
-    } catch (reason) {
-      toast.error(errorText(reason));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function issueInvite() {
-    if (!device) return;
-    setBusy(true);
-    try {
-      setNewInvite(await createWorkspaceInvite({ data: device }));
-      toast.success("Đã tạo mã mời, mã chỉ hiển thị tại thiết bị này.");
-      await refresh(device);
-    } catch (reason) {
-      toast.error(errorText(reason));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function revoke(inviteId: string) {
-    setBusy(true);
-    try {
-      await revokeWorkspaceInvite({ data: { inviteId } });
-      toast.success("Đã thu hồi mã mời.");
-      await refresh();
-    } catch (reason) {
-      toast.error(errorText(reason));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function removeMember(memberUserId: string) {
-    if (!window.confirm("Xóa thành viên này khỏi hệ thống dùng chung?")) return;
-    setBusy(true);
-    try {
-      await removeWorkspaceMember({ data: { memberUserId } });
-      toast.success("Đã xóa thành viên và các thiết bị của họ.");
-      await refresh();
-    } catch (reason) {
-      toast.error(errorText(reason));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function copyInvite() {
-    if (!newInvite) return;
-    try {
-      await navigator.clipboard.writeText(newInvite.token);
-      toast.success("Đã sao chép mã mời.");
-    } catch (reason) {
-      toast.error(`Không sao chép được: ${errorText(reason)}`);
-    }
-  }
-
   if (loading) {
     return <div className="glass rounded-card p-6 text-muted">Đang kiểm tra hệ thống dùng chung…</div>;
   }
@@ -198,7 +126,7 @@ export function WorkspaceScreen({ nav }: { nav: Nav }) {
             <span className="grid size-11 place-items-center rounded-xl bg-pine-soft text-pine"><Cloud className="size-5" /></span>
             <div>
               <h2 className="text-lg font-bold">Kết nối hệ thống cửa hàng</h2>
-              <p className="text-sm text-muted">Tạo một sổ dùng chung hoặc tham gia bằng mã mời của quản trị viên.</p>
+              <p className="text-sm text-muted">Tạo sổ dùng chung. Các thiết bị đăng nhập bằng cùng mã chủ sẽ tự dùng chung sổ này.</p>
             </div>
           </div>
           <div className="grid gap-5 md:grid-cols-2">
@@ -210,14 +138,6 @@ export function WorkspaceScreen({ nav }: { nav: Nav }) {
               <p className="text-sm text-muted">Sổ đang có trên thiết bị này sẽ trở thành bản dữ liệu ban đầu.</p>
               <Button disabled={busy || !name.trim()} onClick={() => void create()}>Tạo hệ thống</Button>
             </div>
-            <div className="grid content-start gap-3 rounded-xl border border-copper/25 bg-copper/5 p-4">
-              <h3 className="font-bold text-copper">Tham gia hệ thống</h3>
-              <Field label="Mã mời">
-                <input className={fieldClass} value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="VA-…" autoComplete="off" />
-              </Field>
-              <p className="text-sm text-muted">Dữ liệu hiện có trên máy được gộp với sổ chung, không bị thay thế âm thầm.</p>
-              <Button tone="soft" disabled={busy || inviteCode.trim().length < 20} onClick={() => void join()}>Kết nối thiết bị</Button>
-            </div>
           </div>
         </section>
         <section className="glass rounded-card p-4 text-sm text-muted">
@@ -227,11 +147,6 @@ export function WorkspaceScreen({ nav }: { nav: Nav }) {
         </section>
       </div>
     );
-  }
-
-  const users = new Map<string, typeof workspace.devices>();
-  for (const entry of workspace.devices) {
-    users.set(entry.userId, [...(users.get(entry.userId) ?? []), entry]);
   }
 
   return (
@@ -247,79 +162,26 @@ export function WorkspaceScreen({ nav }: { nav: Nav }) {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button tone="ghost" disabled={busy} onClick={() => void refresh()}><RefreshCw className="size-4" /> Làm mới</Button>
-          {workspace.role === "admin" ? <Button disabled={busy} onClick={() => void issueInvite()}><KeyRound className="size-4" /> Tạo mã mời</Button> : null}
           <Button tone="ghost" onClick={() => nav.show({ view: "backup" })}>Sao lưu dữ liệu</Button>
         </div>
-        {newInvite ? (
-          <div className="mt-4 rounded-xl border border-copper/35 bg-copper/5 p-4">
-            <p className="text-sm font-bold text-copper">Mã mời — hết hạn sau 7 ngày, tối đa 20 lượt</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <code className="min-w-0 flex-1 break-all rounded-lg bg-bg/70 p-3 text-sm">{newInvite.token}</code>
-              <Button tone="soft" onClick={() => void copyInvite()}><Copy className="size-4" /> Sao chép</Button>
-            </div>
-            <p className="mt-2 text-xs text-muted">Giữ mã này riêng tư. Có thể thu hồi trong danh sách mã mời.</p>
-          </div>
-        ) : null}
       </section>
 
       <section className="glass rounded-card p-5">
         <div className="mb-3 flex items-center gap-2">
-          <UserRound className="size-5 text-pine" />
-          <h3 className="font-bold">Thành viên và thiết bị</h3>
+          <Cloud className="size-5 text-pine" />
+          <h3 className="font-bold">Thiết bị của hệ thống</h3>
         </div>
         <div className="grid gap-2">
-          {[...users.entries()].map(([userId, devices]) => {
-            const role = devices[0]?.role;
-            const isSelf = userId === workspace.ownerId || devices.some((entry) => entry.deviceId === device?.id);
-            return (
-              <article key={userId} className="rounded-xl border border-line bg-bg/40 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="break-all text-sm font-semibold">{role === "admin" ? "Quản trị viên" : "Thành viên"} · {userId.slice(0, 10)}</p>
-                    <p className="mt-1 text-xs text-muted">{devices.length} thiết bị</p>
-                  </div>
-                  {workspace.role === "admin" && role !== "admin" ? (
-                    <Button tone="danger" className="min-h-10 px-3 text-sm" disabled={busy} onClick={() => void removeMember(userId)}>Xóa thành viên</Button>
-                  ) : null}
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {devices.map((entry) => (
-                    <div key={entry.deviceId} className="flex items-center gap-2 rounded-lg bg-surface/50 px-3 py-2 text-sm">
-                      {entry.online ? <Wifi className="size-4 shrink-0 text-ok" /> : <WifiOff className="size-4 shrink-0 text-muted" />}
-                      <span className="min-w-0 flex-1 truncate">{entry.name}{entry.deviceId === device?.id ? " · thiết bị này" : ""}</span>
-                      <span className={entry.online ? "text-ok" : "text-muted"}>{entry.online ? "Online" : "Offline"}</span>
-                    </div>
-                  ))}
-                </div>
-                {isSelf ? <p className="mt-2 text-xs text-muted">Tài khoản của bạn</p> : null}
-              </article>
-            );
-          })}
-          {workspace.devices.length === 0 ? <EmptyState title="Chưa có thiết bị" body="Thiết bị sẽ xuất hiện khi thành viên mở ứng dụng." /> : null}
+          {workspace.devices.map((entry) => (
+            <div key={`${entry.userId}-${entry.deviceId}`} className="flex items-center gap-2 rounded-xl border border-line bg-bg/40 px-3 py-2 text-sm">
+              {entry.online ? <Wifi className="size-4 shrink-0 text-ok" /> : <WifiOff className="size-4 shrink-0 text-muted" />}
+              <span className="min-w-0 flex-1 truncate">{entry.name}{entry.deviceId === device?.id ? " · thiết bị này" : ""}</span>
+              <span className={entry.online ? "text-ok" : "text-muted"}>{entry.online ? "Online" : "Offline"}</span>
+            </div>
+          ))}
+          {workspace.devices.length === 0 ? <EmptyState title="Chưa có thiết bị" body="Thiết bị sẽ xuất hiện khi mở ứng dụng bằng mã chủ." /> : null}
         </div>
       </section>
-
-      {workspace.role === "admin" ? (
-        <section className="glass rounded-card p-5">
-          <h3 className="font-bold">Quản lý mã mời</h3>
-          <div className="mt-3 grid gap-2">
-            {workspace.invites.map((invite) => {
-              const expired = Date.now() >= new Date(invite.expiresAt).getTime();
-              const disabled = Boolean(invite.revokedAt) || expired || invite.usesRemaining <= 0;
-              return (
-                <div key={invite.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-bg/40 p-3">
-                  <div>
-                    <p className="text-sm font-semibold">{disabled ? invite.revokedAt ? "Đã thu hồi" : expired ? "Đã hết hạn" : "Đã dùng hết" : "Đang hoạt động"}</p>
-                    <p className="text-xs text-muted">Còn {invite.usesRemaining} lượt · hết hạn {new Date(invite.expiresAt).toLocaleDateString("vi-VN")}</p>
-                  </div>
-                  {!disabled ? <Button tone="danger" className="min-h-10 px-3 text-sm" disabled={busy} onClick={() => void revoke(invite.id)}>Thu hồi</Button> : null}
-                </div>
-              );
-            })}
-            {workspace.invites.length === 0 ? <p className="text-sm text-muted">Chưa tạo mã mời nào.</p> : null}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

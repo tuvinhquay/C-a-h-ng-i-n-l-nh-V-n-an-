@@ -1,4 +1,5 @@
 import { getRequest } from "@tanstack/react-start/server";
+import { getSql } from "@/lib/db";
 import { gateIdentityEnabled } from "./gate-identity.server";
 import { auth, authConfigured } from "./server";
 
@@ -67,6 +68,24 @@ export async function getSessionUser(
   }
   const session = await auth.api.getSession({ headers });
   if (!session?.user) return null;
+  const sql = await getSql();
+  const authorized = await sql.query<{
+    initialized: boolean;
+    allowed: boolean;
+  }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM app_access_key WHERE id = 1
+     ) AS initialized,
+     EXISTS (
+       SELECT 1
+       FROM app_access_key k
+       JOIN app_access_key_sessions s
+         ON s.user_id = k.user_id
+       WHERE k.id = 1 AND s.session_id = $1 AND s.user_id = $2
+     ) AS allowed`,
+    [session.session.id, session.user.id],
+  );
+  if (authorized[0]?.initialized && !authorized[0].allowed) return null;
   return { id: session.user.id, email: session.user.email ?? null };
 }
 

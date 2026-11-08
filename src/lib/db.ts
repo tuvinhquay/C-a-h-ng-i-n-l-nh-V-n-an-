@@ -3,6 +3,7 @@ import pg from "pg";
 import authSchema from "../../migrations/0001_auth.sql?raw";
 import appSchema from "../../migrations/0002_shared_workspaces.sql?raw";
 import recoverySchema from "../../migrations/0003_password_recovery.sql?raw";
+import accessKeySchema from "../../migrations/0004_access_key.sql?raw";
 
 type Row = Record<string, unknown>;
 
@@ -32,6 +33,7 @@ export function ensureDbReady(): Promise<void> {
     await client.exec(authSchema);
     await client.exec(appSchema);
     await client.exec(recoverySchema);
+    await client.exec(accessKeySchema);
   })().catch((error: unknown) => {
     globalDatabase.__shopDbReady = undefined;
     throw error;
