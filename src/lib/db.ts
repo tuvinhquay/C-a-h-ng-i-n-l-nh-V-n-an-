@@ -20,7 +20,15 @@ const globalDatabase = globalThis as typeof globalThis & {
   __shopPglite?: PGlite;
   __shopPool?: pg.Pool;
   __shopDbReady?: Promise<void>;
+  __shopPostgresDbReady?: Promise<void>;
 };
+
+const postgresMigrations = [
+  { name: "0001_auth.sql", sql: authSchema },
+  { name: "0002_shared_workspaces.sql", sql: appSchema },
+  { name: "0003_password_recovery.sql", sql: recoverySchema },
+  { name: "0004_access_key.sql", sql: accessKeySchema },
+] as const;
 
 export function getPglite(): PGlite {
   globalDatabase.__shopPglite ??= new PGlite();
@@ -39,6 +47,63 @@ export function ensureDbReady(): Promise<void> {
     throw error;
   });
   return globalDatabase.__shopDbReady;
+}
+
+async function ensurePostgresDbReady(pool: pg.Pool): Promise<void> {
+  globalDatabase.__shopPostgresDbReady ??= (async () => {
+    const client = await pool.connect();
+    let failed = false;
+    let currentMigration = "migration ledger";
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock($1)", [814320041]);
+      await client.query(
+        "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+      );
+      const appliedRows = await client.query<{ name: string }>(
+        "SELECT name FROM _migrations",
+      );
+      const applied = new Set(appliedRows.rows.map(({ name }) => name));
+
+      for (const migration of postgresMigrations) {
+        if (applied.has(migration.name)) continue;
+        currentMigration = migration.name;
+        await client.query(migration.sql);
+        await client.query("INSERT INTO _migrations (name) VALUES ($1)", [
+          migration.name,
+        ]);
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // Preserve the migration error if the connection has already failed.
+      }
+      failed = true;
+      const reason = error instanceof Error ? error.message : String(error);
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? String(error.code)
+          : "unknown";
+      console.error(
+        `[db:migrate] failed applying ${currentMigration} (${code}): ${reason}`,
+      );
+      throw error;
+    } finally {
+      client.release(failed ? new Error("Database migration failed") : undefined);
+    }
+  })().catch((error: unknown) => {
+    globalDatabase.__shopPostgresDbReady = undefined;
+    const reason = error instanceof Error ? error.message : String(error);
+    const code =
+      typeof error === "object" && error !== null && "code" in error
+        ? String(error.code)
+        : "unknown";
+    console.error(`[db:migrate] PostgreSQL initialization failed (${code}): ${reason}`);
+    throw error;
+  });
+  return globalDatabase.__shopPostgresDbReady;
 }
 
 function createSql(queryable: Queryable): Sql {
@@ -61,6 +126,7 @@ export async function getSql(): Promise<Sql> {
   const connectionString = process.env.DATABASE_URL?.trim();
   if (connectionString) {
     globalDatabase.__shopPool ??= new pg.Pool({ connectionString, max: 5 });
+    await ensurePostgresDbReady(globalDatabase.__shopPool);
     return createSql(globalDatabase.__shopPool);
   }
 
