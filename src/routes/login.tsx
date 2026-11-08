@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, KeyRound, Snowflake } from "lucide-react";
 import { Button, fieldClass } from "@/components/ui";
 import {
@@ -9,7 +9,12 @@ import {
   setBearerToken,
 } from "@/lib/auth/client";
 
-export const Route = createFileRoute("/login")({ component: AccessKeyLogin });
+export const Route = createFileRoute("/login")({
+  beforeLoad: () => {
+    if (!authEnabled) throw redirect({ to: "/" });
+  },
+  component: AccessKeyLogin,
+});
 
 type Screen =
   | "loading"

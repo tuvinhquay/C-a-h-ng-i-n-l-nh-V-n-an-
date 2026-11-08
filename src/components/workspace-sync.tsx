@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { getDeviceIdentity } from "@/lib/local-db";
 import { useShop } from "@/lib/store";
 import { getWorkspace, syncWorkspace } from "@/lib/workspace";
+import { authEnabled } from "@/lib/auth/client";
 
 type SyncStatus = "idle" | "syncing" | "synced" | "offline" | "error";
 
@@ -27,7 +28,7 @@ export function WorkspaceSync() {
   latest.current = shop;
 
   useEffect(() => {
-    if (!shop.ready) return;
+    if (!authEnabled || !shop.ready) return;
     let active = true;
     let running = false;
     let timer = 0;

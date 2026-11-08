@@ -5,6 +5,7 @@ import { Button, Badge, EmptyState, Field, errorText, fieldClass } from "@/compo
 import { getDeviceIdentity } from "@/lib/local-db";
 import { createWorkspace, getWorkspace } from "@/lib/workspace";
 import { useShop } from "@/lib/store";
+import { authEnabled } from "@/lib/auth/client";
 import type { SyncDocument } from "@/lib/types";
 import type { Nav } from "@/lib/nav";
 
@@ -50,6 +51,7 @@ export function WorkspaceScreen({ nav }: { nav: Nav }) {
   }
 
   useEffect(() => {
+    if (!authEnabled) return;
     let active = true;
     let timer = 0;
     const pull = async (identity: DeviceIdentity) => {
@@ -83,6 +85,21 @@ export function WorkspaceScreen({ nav }: { nav: Nav }) {
       if (timer) window.clearInterval(timer);
     };
   }, []);
+
+  if (!authEnabled) {
+    return (
+      <section className="glass rounded-card p-5 sm:p-6">
+        <h2 className="text-lg font-bold">Dữ liệu đang lưu trên thiết bị này</h2>
+        <p className="mt-2 text-sm text-muted">
+          Chế độ vào thẳng không yêu cầu mã đăng nhập. Dữ liệu kho vẫn hoạt động offline trên thiết bị
+          này; đồng bộ giữa nhiều thiết bị tạm dừng. Hãy sao lưu thường xuyên để bảo vệ dữ liệu.
+        </p>
+        <Button className="mt-4" onClick={() => nav.show({ view: "backup" })}>
+          Mở sao lưu / khôi phục
+        </Button>
+      </section>
+    );
+  }
 
   async function create() {
     if (!device) return;

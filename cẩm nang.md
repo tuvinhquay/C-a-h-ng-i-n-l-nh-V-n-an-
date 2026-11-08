@@ -201,8 +201,19 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
 
 ## 8. Xác thực và đồng bộ hệ thống
 
-- `src/routes/login.tsx` tự khởi tạo mã chủ ở lần đầu, yêu cầu nhập lại mã
-  trước khi kích hoạt, và chỉ giữ một ô nhập mã cho các lần đăng nhập sau.
+- Chế độ hiện tại tạm tắt giao diện xác thực để mở thẳng app. Cờ
+  `authEnabled` trong `src/lib/auth/client.ts` đang cố định `false`;
+  `/login` tự quay về trang chính. Các API Better Auth và mã chủ vẫn còn trong
+  source để có thể bật lại sau.
+- Dữ liệu kho vẫn lưu trên IndexedDB của từng thiết bị; bot, in ấn, xuất file
+  và backup/khôi phục vẫn dùng được. `WorkspaceSync` tạm dừng khi không đăng
+  nhập, nên thay đổi giữa các thiết bị không tự đồng bộ. Hãy sao lưu JSON định
+  kỳ và chuyển file backup sang thiết bị mới nếu cần.
+- Khi cần bật đăng nhập lại, khôi phục `authEnabled` về cờ
+  `import.meta.env.VITE_AUTH_ENABLED !== "false"` sau khi cấu hình Postgres
+  bền vững trên Vercel.
+- Khi xác thực được bật, `src/routes/login.tsx` khởi tạo mã chủ, yêu cầu nhập
+  lại mã trước khi kích hoạt và chỉ giữ một ô nhập mã cho các lần đăng nhập sau.
   `src/lib/auth/access-key-plugin.server.ts` triển khai API khởi tạo, xác nhận,
   đăng nhập và phiên Better Auth; `src/lib/auth/access-key.server.ts` sinh mã
   ngẫu nhiên, hash bằng scrypt và so sánh an toàn.
@@ -219,9 +230,10 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
 - Workspace ID chỉ là định danh, không phải bí mật hay thông tin đăng nhập.
   Quy trình mã mời/tài khoản thành viên riêng đã ẩn khỏi giao diện do tất cả
   thiết bị hiện dùng chung mã chủ.
-- `src/components/workspace-sync.tsx` đồng bộ mỗi 15 giây và khi mạng trở lại.
-  Đây không phải LAN-only/P2P; cần máy chủ có kết nối Internet để chuyển dữ liệu
-  giữa thiết bị. Khi offline, thao tác tiếp tục trên IndexedDB.
+- Khi xác thực được bật, `src/components/workspace-sync.tsx` đồng bộ mỗi 15 giây
+  và khi mạng trở lại. Đây không phải LAN-only/P2P; cần máy chủ có kết nối
+  Internet để chuyển dữ liệu giữa thiết bị. Khi offline, thao tác tiếp tục trên
+  IndexedDB.
 - Thiết bị cùng mã chủ dùng chung danh tính hệ thống; hiện không hỗ trợ cấp
   tài khoản riêng hoặc thu hồi từng thành viên.
 - Bot chạy nhận diện ý định hoàn toàn cục bộ (không gọi API AI); sản phẩm được
@@ -233,16 +245,10 @@ Các thay đổi giao diện hiện có trong working tree tại lúc ghi tài l
 
 ### Cách sử dụng
 
-1. Lần đầu mở `/login`, hệ thống tự tạo mã chủ. Lưu mã ở nơi an toàn, bấm
-   “Tôi đã lưu mã”, nhập lại để xác nhận. Mất mã sẽ không thể đăng nhập lại;
-   không có email, OTP hay câu hỏi bí mật để khôi phục.
-2. Trên thiết bị khác mở cùng ứng dụng, nhập cùng mã chủ. Chia sẻ mã chỉ với
-   người được phép truy cập toàn bộ sổ; mọi thiết bị sẽ là cùng một tài khoản.
-3. Mở “Thiết bị & đồng bộ” → chọn “Tạo hệ thống mới”. Sổ cục bộ hiện tại
-   sẽ được tải làm dữ liệu ban đầu.
-4. Tải backup JSON từ màn “Sao lưu” trước các thay đổi quan trọng. Dữ liệu
-   đồng bộ giữa thiết bị qua máy chủ; dùng được ngoại tuyến trên từng máy.
-5. Mở biểu tượng robot để tra “LG M31UII còn bao nhiêu cái?”, “linh kiện nào
+1. Mở ứng dụng để vào thẳng màn Tổng quan; không cần mã đăng nhập.
+2. Dữ liệu chỉ nằm trên thiết bị đang dùng. Mở “Sao lưu” và tải backup JSON
+   định kỳ; để chuyển sang thiết bị khác, nhập file backup trên thiết bị đó.
+3. Mở biểu tượng robot để tra “LG M31UII còn bao nhiêu cái?”, “linh kiện nào
    sắp hết?” hoặc “có bao nhiêu phiếu sửa đang mở?”. Khi chưa biết sản phẩm,
    nhập tên/model, số lượng, màu và vị trí theo yêu cầu bot; kiểm tra thông tin
    bot tóm tắt rồi chọn “Xác nhận thêm” để lưu, hoặc “Hủy” để không thay đổi kho.

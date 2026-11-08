@@ -78,7 +78,7 @@ export function UserButton() {
   // Sign-out can take a moment (and can fail when deployed), so the control
   // shows it is working and cannot be fired twice.
   const [signingOut, setSigningOut] = useState(false);
-  if (!user) return null;
+  if (!authEnabled || !user) return null;
   const label = user.displayName ?? user.primaryEmail ?? "Account";
   return (
     <div className="flex items-center gap-2">

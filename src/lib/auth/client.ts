@@ -25,11 +25,8 @@ export const authClient = createAuthClient({
   },
 });
 
-/**
- * True when sign-in UI should be shown. A `"false"` value selects the
- * development user; production auth is enabled by the deployment platform.
- */
-export const authEnabled = import.meta.env.VITE_AUTH_ENABLED !== "false";
+/** Temporary direct-entry mode: keep the app usable without an access key. */
+export const authEnabled = false;
 
 // ── Live-preview bearer token ────────────────────────────────────────────────
 // The embedded preview iframe has partitioned cookies, so we keep the session's
